@@ -7,8 +7,11 @@ from pydantic import BaseModel, field_validator
 
 class UserRole(str, Enum):
     VOLUNTEER = "volunteer"
+    COORDINATOR = "coordinator"
     ADMIN = "admin"
 
+class ChangeRoleRequest(BaseModel):
+    role: UserRole
 
 class RegisterRequest(BaseModel):
     name: str
@@ -61,3 +64,106 @@ class UserResponse(BaseModel):
     roll_number: str
     role: UserRole
     service_hours: float
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, password: str) -> str:
+        if len(password) < 8:
+            raise ValueError(
+                "Password must be at least 8 characters long"
+            )
+
+        if not re.search(r"[A-Z]", password):
+            raise ValueError(
+                "Password must contain at least one uppercase letter"
+            )
+
+        if not re.search(r"[a-z]", password):
+            raise ValueError(
+                "Password must contain at least one lowercase letter"
+            )
+
+        if not re.search(r"\d", password):
+            raise ValueError(
+                "Password must contain at least one number"
+            )
+
+        if not re.search(r"[^A-Za-z0-9]", password):
+            raise ValueError(
+                "Password must contain at least one special character"
+            )
+
+        return password
+
+class ResetPasswordRequest(BaseModel):
+    roll_number: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, password: str) -> str:
+        if len(password) < 8:
+            raise ValueError(
+                "Password must be at least 8 characters long"
+            )
+
+        if not re.search(r"[A-Z]", password):
+            raise ValueError(
+                "Password must contain at least one uppercase letter"
+            )
+
+        if not re.search(r"[a-z]", password):
+            raise ValueError(
+                "Password must contain at least one lowercase letter"
+            )
+
+        if not re.search(r"\d", password):
+            raise ValueError(
+                "Password must contain at least one number"
+            )
+
+        if not re.search(r"[^A-Za-z0-9]", password):
+            raise ValueError(
+                "Password must contain at least one special character"
+            )
+
+        return password
+    
+class CreateCoordinatorRequest(BaseModel):
+    name: str
+    roll_number: str
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, password: str) -> str:
+        if len(password) < 8:
+            raise ValueError(
+                "Password must be at least 8 characters long"
+            )
+
+        if not re.search(r"[A-Z]", password):
+            raise ValueError(
+                "Password must contain at least one uppercase letter"
+            )
+
+        if not re.search(r"[a-z]", password):
+            raise ValueError(
+                "Password must contain at least one lowercase letter"
+            )
+
+        if not re.search(r"\d", password):
+            raise ValueError(
+                "Password must contain at least one number"
+            )
+
+        if not re.search(r"[^A-Za-z0-9]", password):
+            raise ValueError(
+                "Password must contain at least one special character"
+            )
+
+        return password

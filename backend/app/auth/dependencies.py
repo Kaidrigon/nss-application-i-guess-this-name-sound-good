@@ -1,6 +1,7 @@
 # this file bassically tells who is usig admin or someone else yk
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 import jwt
 from bson import ObjectId
 
@@ -61,6 +62,7 @@ async def get_current_user(
 
     return user
 
+
 async def require_admin(
     current_user=Depends(get_current_user),
 ):
@@ -68,6 +70,18 @@ async def require_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
+        )
+
+    return current_user
+
+
+async def require_staff(
+    current_user=Depends(get_current_user),
+):
+    if current_user["role"] not in ["admin", "coordinator"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff access required",
         )
 
     return current_user
