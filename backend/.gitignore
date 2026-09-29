@@ -1,3 +1,4 @@
 #ignore .env because its sensitive just like my classmate Yashila because she can't handle a simple and stupid flirty joke and on top of that she thinks i stalked her yeah as if she is some queen anyways i hope you got the idea what i am doing here.
 .env
-__pyache__
+__pycache__/
+*.py[cod]
