@@ -102,72 +102,72 @@ async def get_event_templates(
 
 
 # ---------------------------------------------------------
-# UPDATE TEMPLATE
-# ---------------------------------------------------------
+# # UPDATE TEMPLATE
+# # ---------------------------------------------------------
 
-@router.patch("/templates/{template_id}")
-async def update_event_template(
-    template_id: str,
-    data: EventTemplateUpdate,
-    current_user=Depends(require_staff),
-):
-    try:
-        object_id = ObjectId(template_id)
+# @router.patch("/templates/{template_id}")
+# async def update_event_template(
+#     template_id: str,
+#     data: EventTemplateUpdate,
+#     current_user=Depends(require_staff),
+# ):
+#     try:
+#         object_id = ObjectId(template_id)
 
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid template ID",
-        )
+#     except Exception:
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="Invalid template ID",
+#         )
 
-    template = await event_templates_collection.find_one(
-        {"_id": object_id}
-    )
+#     template = await event_templates_collection.find_one(
+#         {"_id": object_id}
+#     )
 
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event template not found",
-        )
+#     if not template:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Event template not found",
+#         )
 
-    update_data = data.model_dump(
-        exclude_unset=True,
-        exclude_none=True,
-    )
+#     update_data = data.model_dump(
+#         exclude_unset=True,
+#         exclude_none=True,
+#     )
 
-    if "event_type" in update_data:
-        update_data["event_type"] = update_data[
-            "event_type"
-        ].value
+#     if "event_type" in update_data:
+#         update_data["event_type"] = update_data[
+#             "event_type"
+#         ].value
 
-    if "title" in update_data:
-        existing_template = await event_templates_collection.find_one(
-            {
-                "title": update_data["title"],
-                "_id": {"$ne": object_id},
-            }
-        )
+#     if "title" in update_data:
+#         existing_template = await event_templates_collection.find_one(
+#             {
+#                 "title": update_data["title"],
+#                 "_id": {"$ne": object_id},
+#             }
+#         )
 
-        if existing_template:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="An event template with this title already exists",
-            )
+#         if existing_template:
+#             raise HTTPException(
+#                 status_code=status.HTTP_400_BAD_REQUEST,
+#                 detail="An event template with this title already exists",
+#             )
 
-    if not update_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No changes provided",
-        )
+#     if not update_data:
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="No changes provided",
+#         )
 
-    await event_templates_collection.update_one(
-        {"_id": object_id},
-        {"$set": update_data},
-    )
+#     await event_templates_collection.update_one(
+#         {"_id": object_id},
+#         {"$set": update_data},
+#     )
 
-    return {
-        "message": "Event template updated successfully"
-    }
+#     return {
+#         "message": "Event template updated successfully"
+#     }
 
 
 # =========================================================
