@@ -11,3 +11,5 @@ users_collection = db["users"] #like here we are creating a variable called user
 events_collection = db["events"]
 registrations_collection = db["registrations"]
 attendance_collection = db["attendance"]
+event_templates_collection = db["event_templates"]
+events_collection = db["events"]

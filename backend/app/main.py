@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 
 from app.auth.router import router as auth_router
+from app.events.router import router as events_router
 
 
 app = FastAPI(
@@ -10,6 +11,7 @@ app = FastAPI(
 
 
 app.include_router(auth_router)
+app.include_router(events_router)
 
 
 @app.get("/")
