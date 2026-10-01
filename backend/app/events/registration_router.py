@@ -11,6 +11,7 @@ from app.auth.dependencies import (
 from app.database import (
     events_collection,
     event_registrations_collection,
+    users_collection,
 )
 
 
@@ -32,6 +33,7 @@ async def register_for_event(
     event_id: str,
     current_user=Depends(get_current_user),
 ):
+
     # -----------------------------------------------------
     # Only volunteers can register
     # -----------------------------------------------------
@@ -150,6 +152,7 @@ async def cancel_registration(
     event_id: str,
     current_user=Depends(get_current_user),
 ):
+
     # -----------------------------------------------------
     # Only volunteers can cancel their registration
     # -----------------------------------------------------
@@ -221,6 +224,7 @@ async def get_my_registration(
     event_id: str,
     current_user=Depends(get_current_user),
 ):
+
     # -----------------------------------------------------
     # Validate event ID
     # -----------------------------------------------------
@@ -265,6 +269,7 @@ async def get_event_registrations(
     event_id: str,
     current_user=Depends(require_staff),
 ):
+
     # -----------------------------------------------------
     # Validate event ID
     # -----------------------------------------------------
@@ -306,8 +311,10 @@ async def get_event_registrations(
 
     async for registration in cursor:
 
-        user = await get_user_for_registration(
-            registration["user_id"]
+        user = await users_collection.find_one(
+            {
+                "_id": registration["user_id"]
+            }
         )
 
         registrations.append(
@@ -315,16 +322,31 @@ async def get_event_registrations(
                 "registration_id": str(
                     registration["_id"]
                 ),
+
                 "user_id": str(
                     registration["user_id"]
                 ),
-                "name": user["name"] if user else "Unknown",
-                "roll_number": (
-                    user["roll_number"]
+
+                "name": (
+                    user["name"]
                     if user
                     else "Unknown"
                 ),
+
+                "roll_number": (
+                    user.get("roll_number")
+                    if user
+                    else None
+                ),
+
+                "email": (
+                    user.get("email")
+                    if user
+                    else None
+                ),
+
                 "status": registration["status"],
+
                 "registered_at": registration.get(
                     "registered_at"
                 ),
@@ -336,15 +358,3 @@ async def get_event_registrations(
         "event_title": event["title"],
         "registrations": registrations,
     }
-
-
-# =========================================================
-# HELPER
-# =========================================================
-
-async def get_user_for_registration(user_id):
-    from app.database import users_collection
-
-    return await users_collection.find_one(
-        {"_id": user_id}
-    )

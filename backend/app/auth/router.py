@@ -1,4 +1,6 @@
 # here bassically we are creating registration and logins and alot of things like hasing using security.py and schemas for request from schemas.py and then we are using the users_collection from database.py to store the user data in the db.
+import re
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from bson import ObjectId
 
@@ -34,6 +36,34 @@ router = APIRouter(
 
 
 # ---------------------------------------------------------
+# HELPER: CHECK WHETHER VALUE IS AN EMAIL
+# ---------------------------------------------------------
+
+def is_email(value: str) -> bool:
+    return bool(
+        re.match(
+            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+            value,
+        )
+    )
+
+
+# ---------------------------------------------------------
+# HELPER: FIND USER BY ROLL NUMBER OR EMAIL
+# ---------------------------------------------------------
+
+async def find_user_by_login_id(login_id: str):
+    return await users_collection.find_one(
+        {
+            "$or": [
+                {"roll_number": login_id},
+                {"email": login_id.lower()},
+            ]
+        }
+    )
+
+
+# ---------------------------------------------------------
 # REGISTER VOLUNTEER
 # ---------------------------------------------------------
 
@@ -43,19 +73,40 @@ router = APIRouter(
 )
 async def register(user: RegisterRequest):
 
-    existing_user = await users_collection.find_one(
-        {"roll_number": user.roll_number}
-    )
+    login_id = user.login_id.strip()
 
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Roll number already registered",
+    if is_email(login_id):
+        email = login_id.lower()
+        roll_number = None
+
+        existing_user = await users_collection.find_one(
+            {"email": email}
         )
 
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+
+    else:
+        roll_number = login_id
+        email = None
+
+        existing_user = await users_collection.find_one(
+            {"roll_number": roll_number}
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Roll number already registered",
+            )
+
     new_user = {
-        "name": user.name,
-        "roll_number": user.roll_number,
+        "name": user.name.strip(),
+        "roll_number": roll_number,
+        "email": email,
         "password_hash": hash_password(user.password),
         "role": "volunteer",
         "service_hours": 0,
@@ -100,20 +151,41 @@ async def register_admin(
             detail="Admin setup has already been completed",
         )
 
-    # Check if roll number already exists
-    existing_user = await users_collection.find_one(
-        {"roll_number": user.roll_number}
-    )
+    login_id = user.login_id.strip()
 
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Roll number already registered",
+    # Check whether email or roll number already exists
+    if is_email(login_id):
+        email = login_id.lower()
+        roll_number = None
+
+        existing_user = await users_collection.find_one(
+            {"email": email}
         )
 
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+
+    else:
+        roll_number = login_id
+        email = None
+
+        existing_user = await users_collection.find_one(
+            {"roll_number": roll_number}
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Roll number already registered",
+            )
+
     new_admin = {
-        "name": user.name,
-        "roll_number": user.roll_number,
+        "name": user.name.strip(),
+        "roll_number": roll_number,
+        "email": email,
         "password_hash": hash_password(user.password),
         "role": "admin",
         "service_hours": 0,
@@ -137,9 +209,12 @@ async def register_admin(
 )
 async def login(user: LoginRequest):
 
-    existing_user = await users_collection.find_one(
-        {"roll_number": user.roll_number}
-    )
+    login_id = user.login_id.strip()
+
+    if is_email(login_id):
+        login_id = login_id.lower()
+
+    existing_user = await find_user_by_login_id(login_id)
 
     if not existing_user:
         raise HTTPException(
@@ -177,13 +252,16 @@ async def login(user: LoginRequest):
 async def get_me(
     current_user=Depends(get_current_user),
 ):
-
     return {
         "id": str(current_user["_id"]),
         "name": current_user["name"],
-        "roll_number": current_user["roll_number"],
+        "roll_number": current_user.get("roll_number"),
+        "email": current_user.get("email"),
         "role": current_user["role"],
-        "service_hours": current_user["service_hours"],
+        "service_hours": current_user.get(
+            "service_hours",
+            0,
+        ),
     }
 
 
@@ -195,7 +273,6 @@ async def get_me(
 async def admin_test(
     current_user=Depends(require_admin),
 ):
-
     return {
         "message": "You have admin access",
         "admin": current_user["name"],
@@ -258,9 +335,12 @@ async def reset_password(
     current_user=Depends(require_staff),
 ):
 
-    user = await users_collection.find_one(
-        {"roll_number": data.roll_number}
-    )
+    login_id = data.login_id.strip()
+
+    if is_email(login_id):
+        login_id = login_id.lower()
+
+    user = await find_user_by_login_id(login_id)
 
     if not user:
         raise HTTPException(
@@ -315,7 +395,8 @@ async def get_users(
             {
                 "id": str(user["_id"]),
                 "name": user["name"],
-                "roll_number": user["roll_number"],
+                "roll_number": user.get("roll_number"),
+                "email": user.get("email"),
                 "role": user["role"],
                 "service_hours": user.get(
                     "service_hours",
@@ -341,7 +422,6 @@ async def change_user_role(
     # Validate ObjectId
     try:
         target_user_id = ObjectId(user_id)
-
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -374,7 +454,6 @@ async def change_user_role(
         target_user["role"] == "admin"
         and data.role != "admin"
     ):
-
         admin_count = await users_collection.count_documents(
             {"role": "admin"}
         )

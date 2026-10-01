@@ -22,7 +22,10 @@ router = APIRouter(
     tags=["Attendance"],
 )
 
+
+# =========================================================
 # MARK ATTENDANCE
+# =========================================================
 
 @router.post("/{event_id}/attendance")
 async def mark_attendance(
@@ -31,7 +34,10 @@ async def mark_attendance(
     attendance_status: str,
     current_user=Depends(require_staff),
 ):
+
+    # -----------------------------------------------------
     # Validate event ID
+    # -----------------------------------------------------
 
     try:
         event_object_id = ObjectId(event_id)
@@ -42,9 +48,9 @@ async def mark_attendance(
             detail="Invalid event ID",
         )
 
-
+    # -----------------------------------------------------
     # Validate user ID
-
+    # -----------------------------------------------------
 
     try:
         user_object_id = ObjectId(user_id)
@@ -55,7 +61,9 @@ async def mark_attendance(
             detail="Invalid user ID",
         )
 
+    # -----------------------------------------------------
     # Validate attendance status
+    # -----------------------------------------------------
 
     if attendance_status not in ["attended", "absent"]:
         raise HTTPException(
@@ -63,7 +71,10 @@ async def mark_attendance(
             detail="Attendance status must be 'attended' or 'absent'",
         )
 
+    # -----------------------------------------------------
     # Find event
+    # -----------------------------------------------------
+
     event = await events_collection.find_one(
         {"_id": event_object_id}
     )
@@ -74,8 +85,10 @@ async def mark_attendance(
             detail="Event not found",
         )
 
+    # -----------------------------------------------------
     # Attendance can only be marked for ongoing
     # or completed events.
+    # -----------------------------------------------------
 
     if event["status"] not in ["ongoing", "completed"]:
         raise HTTPException(
@@ -83,7 +96,9 @@ async def mark_attendance(
             detail="Attendance can only be marked for ongoing or completed events",
         )
 
+    # -----------------------------------------------------
     # Find volunteer
+    # -----------------------------------------------------
 
     user = await users_collection.find_one(
         {"_id": user_object_id}
@@ -185,7 +200,10 @@ async def mark_attendance(
                     "event_title": event["title"],
                     "hours": -credited_hours,
                     "action": "reversed",
-                    "reason": "Attendance changed from attended to absent",
+                    "reason": (
+                        "Attendance changed from "
+                        "attended to absent"
+                    ),
                     "recorded_at": datetime.now(timezone.utc),
                 }
             )
@@ -218,7 +236,10 @@ async def mark_attendance(
                     "event_title": event["title"],
                     "hours": credited_hours,
                     "action": "credited",
-                    "reason": "Attendance changed from absent to attended",
+                    "reason": (
+                        "Attendance changed from "
+                        "absent to attended"
+                    ),
                     "recorded_at": datetime.now(timezone.utc),
                 }
             )
@@ -326,6 +347,7 @@ async def get_event_attendance(
     event_id: str,
     current_user=Depends(require_staff),
 ):
+
     # -----------------------------------------------------
     # Validate event ID
     # -----------------------------------------------------
@@ -374,20 +396,31 @@ async def get_event_attendance(
                 "attendance_id": str(
                     attendance["_id"]
                 ),
+
                 "user_id": str(
                     attendance["user_id"]
                 ),
+
                 "name": (
                     user["name"]
                     if user
                     else "Unknown"
                 ),
+
                 "roll_number": (
-                    user["roll_number"]
+                    user.get("roll_number")
                     if user
-                    else "Unknown"
+                    else None
                 ),
+
+                "email": (
+                    user.get("email")
+                    if user
+                    else None
+                ),
+
                 "status": attendance["status"],
+
                 "marked_at": attendance.get(
                     "marked_at"
                 ),
@@ -410,6 +443,7 @@ async def get_my_attendance(
     event_id: str,
     current_user=Depends(get_current_user),
 ):
+
     # -----------------------------------------------------
     # Validate event ID
     # -----------------------------------------------------
