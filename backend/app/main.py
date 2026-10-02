@@ -6,6 +6,7 @@ from app.events.router import router as events_router
 from app.events.registration_router import router as registration_router
 from app.events.attendance_router import router as attendance_router
 from app.service_hours.router import router as service_hours_router
+from app.reports.router import router as reports_router
 
 
 app = FastAPI(
@@ -18,6 +19,7 @@ app.include_router(events_router)
 app.include_router(registration_router)
 app.include_router(attendance_router)
 app.include_router(service_hours_router)
+app.include_router(reports_router)
 
 
 @app.get("/")

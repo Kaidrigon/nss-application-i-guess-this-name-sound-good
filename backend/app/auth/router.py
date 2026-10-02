@@ -75,6 +75,10 @@ async def register(user: RegisterRequest):
 
     login_id = user.login_id.strip()
 
+    # -----------------------------------------------------
+    # Determine whether login ID is email or roll number
+    # -----------------------------------------------------
+
     if is_email(login_id):
         email = login_id.lower()
         roll_number = None
@@ -103,10 +107,19 @@ async def register(user: RegisterRequest):
                 detail="Roll number already registered",
             )
 
+    # -----------------------------------------------------
+    # Create volunteer
+    # -----------------------------------------------------
+
     new_user = {
         "name": user.name.strip(),
         "roll_number": roll_number,
         "email": email,
+
+        # NEW: academic information
+        "class_name": user.class_name.strip(),
+        "year": user.year,
+
         "password_hash": hash_password(user.password),
         "role": "volunteer",
         "service_hours": 0,
@@ -133,14 +146,20 @@ async def register_admin(
     setup_key: str = Header(...),
 ):
 
+    # -----------------------------------------------------
     # Check admin setup key
+    # -----------------------------------------------------
+
     if setup_key != ADMIN_SETUP_KEY:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin setup key",
         )
 
+    # -----------------------------------------------------
     # Only allow this endpoint if no admin exists
+    # -----------------------------------------------------
+
     existing_admin = await users_collection.find_one(
         {"role": "admin"}
     )
@@ -153,7 +172,10 @@ async def register_admin(
 
     login_id = user.login_id.strip()
 
+    # -----------------------------------------------------
     # Check whether email or roll number already exists
+    # -----------------------------------------------------
+
     if is_email(login_id):
         email = login_id.lower()
         roll_number = None
@@ -182,10 +204,21 @@ async def register_admin(
                 detail="Roll number already registered",
             )
 
+    # -----------------------------------------------------
+    # Create first admin
+    #
+    # class_name and year are included because
+    # RegisterRequest currently requires them.
+    # -----------------------------------------------------
+
     new_admin = {
         "name": user.name.strip(),
         "roll_number": roll_number,
         "email": email,
+
+        "class_name": user.class_name.strip(),
+        "year": user.year,
+
         "password_hash": hash_password(user.password),
         "role": "admin",
         "service_hours": 0,
@@ -257,6 +290,11 @@ async def get_me(
         "name": current_user["name"],
         "roll_number": current_user.get("roll_number"),
         "email": current_user.get("email"),
+
+        # NEW: academic information
+        "class_name": current_user.get("class_name"),
+        "year": current_user.get("year"),
+
         "role": current_user["role"],
         "service_hours": current_user.get(
             "service_hours",
@@ -289,7 +327,10 @@ async def change_password(
     current_user=Depends(get_current_user),
 ):
 
+    # -----------------------------------------------------
     # Verify current password
+    # -----------------------------------------------------
+
     if not verify_password(
         data.current_password,
         current_user["password_hash"],
@@ -299,7 +340,10 @@ async def change_password(
             detail="Current password is incorrect",
         )
 
+    # -----------------------------------------------------
     # Prevent using the same password
+    # -----------------------------------------------------
+
     if verify_password(
         data.new_password,
         current_user["password_hash"],
@@ -309,15 +353,25 @@ async def change_password(
             detail="New password must be different",
         )
 
+    # -----------------------------------------------------
     # Hash new password
+    # -----------------------------------------------------
+
     new_password_hash = hash_password(
         data.new_password
     )
 
+    # -----------------------------------------------------
     # Update MongoDB
+    # -----------------------------------------------------
+
     await users_collection.update_one(
         {"_id": current_user["_id"]},
-        {"$set": {"password_hash": new_password_hash}},
+        {
+            "$set": {
+                "password_hash": new_password_hash
+            }
+        },
     )
 
     return {
@@ -348,7 +402,10 @@ async def reset_password(
             detail="User not found",
         )
 
+    # -----------------------------------------------------
     # Coordinators can only reset volunteer passwords
+    # -----------------------------------------------------
+
     if (
         current_user["role"] == "coordinator"
         and user["role"] != "volunteer"
@@ -364,7 +421,11 @@ async def reset_password(
 
     await users_collection.update_one(
         {"_id": user["_id"]},
-        {"$set": {"password_hash": new_password_hash}},
+        {
+            "$set": {
+                "password_hash": new_password_hash
+            }
+        },
     )
 
     return {
@@ -397,6 +458,11 @@ async def get_users(
                 "name": user["name"],
                 "roll_number": user.get("roll_number"),
                 "email": user.get("email"),
+
+                # NEW: academic information
+                "class_name": user.get("class_name"),
+                "year": user.get("year"),
+
                 "role": user["role"],
                 "service_hours": user.get(
                     "service_hours",
@@ -419,16 +485,23 @@ async def change_user_role(
     current_user=Depends(require_admin),
 ):
 
+    # -----------------------------------------------------
     # Validate ObjectId
+    # -----------------------------------------------------
+
     try:
         target_user_id = ObjectId(user_id)
+
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid user ID",
         )
 
+    # -----------------------------------------------------
     # Find target user
+    # -----------------------------------------------------
+
     target_user = await users_collection.find_one(
         {"_id": target_user_id}
     )
@@ -439,7 +512,10 @@ async def change_user_role(
             detail="User not found",
         )
 
-    # Prevent an admin from removing their own admin role
+    # -----------------------------------------------------
+    # Prevent admin from removing own admin role
+    # -----------------------------------------------------
+
     if (
         str(current_user["_id"]) == user_id
         and data.role != "admin"
@@ -449,7 +525,10 @@ async def change_user_role(
             detail="You cannot remove your own admin role",
         )
 
-    # Prevent the last admin from losing admin status
+    # -----------------------------------------------------
+    # Prevent last admin from losing admin status
+    # -----------------------------------------------------
+
     if (
         target_user["role"] == "admin"
         and data.role != "admin"
@@ -464,10 +543,17 @@ async def change_user_role(
                 detail="At least one admin must remain",
             )
 
+    # -----------------------------------------------------
     # Update role
+    # -----------------------------------------------------
+
     await users_collection.update_one(
         {"_id": target_user_id},
-        {"$set": {"role": data.role}},
+        {
+            "$set": {
+                "role": data.role
+            }
+        },
     )
 
     return {

@@ -3,7 +3,7 @@ import re
 
 from enum import Enum
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class UserRole(str, Enum):
@@ -22,7 +22,21 @@ class ChangeRoleRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     name: str
+
     login_id: str
+
+    class_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+    )
+
+    year: int = Field(
+        ...,
+        ge=1,
+        le=4,
+    )
+
     password: str
 
     @field_validator("login_id")
@@ -31,11 +45,25 @@ class RegisterRequest(BaseModel):
         value = value.strip()
 
         if not value:
-            raise ValueError("Roll number or email is required")
+            raise ValueError(
+                "Roll number or email is required"
+            )
 
         if len(value) > 100:
             raise ValueError(
                 "Roll number or email must be 100 characters or less"
+            )
+
+        return value
+
+    @field_validator("class_name")
+    @classmethod
+    def validate_class_name(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Class is required"
             )
 
         return value
@@ -85,7 +113,9 @@ class LoginRequest(BaseModel):
         value = value.strip()
 
         if not value:
-            raise ValueError("Roll number or email is required")
+            raise ValueError(
+                "Roll number or email is required"
+            )
 
         return value
 
@@ -108,6 +138,8 @@ class UserResponse(BaseModel):
     name: str
     roll_number: str | None = None
     email: str | None = None
+    class_name: str | None = None
+    year: int | None = None
     role: UserRole
     service_hours: float
 
@@ -165,7 +197,9 @@ class ResetPasswordRequest(BaseModel):
         value = value.strip()
 
         if not value:
-            raise ValueError("Roll number or email is required")
+            raise ValueError(
+                "Roll number or email is required"
+            )
 
         return value
 
@@ -206,7 +240,9 @@ class ResetPasswordRequest(BaseModel):
 
 class CreateCoordinatorRequest(BaseModel):
     name: str
+
     login_id: str
+
     password: str
 
     @field_validator("login_id")
@@ -215,7 +251,9 @@ class CreateCoordinatorRequest(BaseModel):
         value = value.strip()
 
         if not value:
-            raise ValueError("Roll number or email is required")
+            raise ValueError(
+                "Roll number or email is required"
+            )
 
         if len(value) > 100:
             raise ValueError(
