@@ -303,6 +303,25 @@ async def get_me(
     }
 
 
+@router.get("/admins")
+async def get_admin_names():
+    admins = []
+
+    cursor = users_collection.find(
+        {"role": "admin"},
+        {
+            "_id": 0,
+            "name": 1,
+        },
+    )
+
+    async for admin in cursor:
+        admins.append({
+            "name": admin.get("name", "Administrator")
+        })
+
+    return admins
+
 # ---------------------------------------------------------
 # ADMIN TEST
 # ---------------------------------------------------------
