@@ -1,0 +1,25 @@
+    {
+    "name": "NSS Community Engagement System",
+    "short_name": "NSS Connect",
+    "description": "NSS volunteer management and community engagement system.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#FBF7F2",
+    "theme_color": "#3D1744",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+        "src": "/icons/icon-192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any maskable"
+        },
+        {
+        "src": "/icons/icon-512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "any maskable"
+        }
+    ]
+    }
+

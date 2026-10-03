@@ -6,19 +6,24 @@ import Register from "./pages/auth/Register";
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-
-      <Route path="/register" element={<Register />} />
-
+      {/* Default page */}
       <Route
         path="/"
-        element={<Navigate to="/login" replace />}
+        element={<Navigate to="/register" replace />}
+      />
+
+      {/* Authentication */}
+      <Route
+        path="/login"
+        element={<Login />}
       />
 
       <Route
-        path="*"
-        element={<Navigate to="/login" replace />}
+        path="/register"
+        element={<Register />}
       />
+
+      {/* Your other routes stay here */}
     </Routes>
   );
 }
