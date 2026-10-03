@@ -8,11 +8,10 @@ from app.database import (
     events_collection,
     event_registrations_collection,
     event_attendance_collection,
+    files_collection,
 )
 
-from app.reports.schemas import (
-    EventReportResponse,
-)
+from app.reports.schemas import EventReportResponse
 
 
 router = APIRouter(
@@ -88,21 +87,41 @@ async def generate_event_report(
     registered_count = len(registered_users)
 
     # =====================================================
-    # GET ATTENDANCE COUNTS
+    # GET ALL ATTENDANCE RECORDS FOR THIS EVENT
     # =====================================================
 
-    attended_count = await event_attendance_collection.count_documents(
+    attendance_cursor = event_attendance_collection.find(
         {
             "event_id": event_object_id,
-            "status": "attended",
         }
     )
 
-    absent_count = await event_attendance_collection.count_documents(
-        {
-            "event_id": event_object_id,
-            "status": "absent",
-        }
+    attendance_by_user = {}
+
+    async for attendance in attendance_cursor:
+
+        user_id = attendance.get("user_id")
+
+        if user_id:
+            attendance_by_user[user_id] = attendance.get(
+                "status",
+                ""
+            )
+
+    # =====================================================
+    # ATTENDANCE COUNTS
+    # =====================================================
+
+    attended_count = sum(
+        1
+        for user_id in attendance_by_user
+        if attendance_by_user[user_id] == "attended"
+    )
+
+    absent_count = sum(
+        1
+        for user_id in attendance_by_user
+        if attendance_by_user[user_id] == "absent"
     )
 
     # =====================================================
@@ -110,10 +129,13 @@ async def generate_event_report(
     # =====================================================
 
     if registered_count > 0:
+
         attendance_percentage = (
             attended_count / registered_count
         ) * 100
+
     else:
+
         attendance_percentage = 0.0
 
     # =====================================================
@@ -145,6 +167,7 @@ async def generate_event_report(
             continue
 
         if year not in year_data:
+
             year_data[year] = {
                 "registered_volunteers": 0,
                 "attended_volunteers": 0,
@@ -153,19 +176,17 @@ async def generate_event_report(
 
         year_data[year]["registered_volunteers"] += 1
 
-        attendance = await event_attendance_collection.find_one(
-            {
-                "event_id": event_object_id,
-                "user_id": user["_id"],
-            }
+        attendance_status = attendance_by_user.get(
+            user["_id"]
         )
 
-        if attendance:
-            if attendance.get("status") == "attended":
-                year_data[year]["attended_volunteers"] += 1
+        if attendance_status == "attended":
 
-            elif attendance.get("status") == "absent":
-                year_data[year]["absent_volunteers"] += 1
+            year_data[year]["attended_volunteers"] += 1
+
+        elif attendance_status == "absent":
+
+            year_data[year]["absent_volunteers"] += 1
 
     year_breakdown = []
 
@@ -174,12 +195,15 @@ async def generate_event_report(
         year_breakdown.append(
             {
                 "year": year,
+
                 "registered_volunteers": year_data[year][
                     "registered_volunteers"
                 ],
+
                 "attended_volunteers": year_data[year][
                     "attended_volunteers"
                 ],
+
                 "absent_volunteers": year_data[year][
                     "absent_volunteers"
                 ],
@@ -200,6 +224,7 @@ async def generate_event_report(
             class_name = "Unknown"
 
         if class_name not in class_data:
+
             class_data[class_name] = {
                 "registered_volunteers": 0,
                 "attended_volunteers": 0,
@@ -208,24 +233,21 @@ async def generate_event_report(
 
         class_data[class_name]["registered_volunteers"] += 1
 
-        attendance = await event_attendance_collection.find_one(
-            {
-                "event_id": event_object_id,
-                "user_id": user["_id"],
-            }
+        attendance_status = attendance_by_user.get(
+            user["_id"]
         )
 
-        if attendance:
+        if attendance_status == "attended":
 
-            if attendance.get("status") == "attended":
-                class_data[class_name][
-                    "attended_volunteers"
-                ] += 1
+            class_data[class_name][
+                "attended_volunteers"
+            ] += 1
 
-            elif attendance.get("status") == "absent":
-                class_data[class_name][
-                    "absent_volunteers"
-                ] += 1
+        elif attendance_status == "absent":
+
+            class_data[class_name][
+                "absent_volunteers"
+            ] += 1
 
     class_breakdown = []
 
@@ -234,24 +256,93 @@ async def generate_event_report(
         class_breakdown.append(
             {
                 "class_name": class_name,
-                "registered_volunteers": class_data[class_name][
+
+                "registered_volunteers": class_data[
+                    class_name
+                ][
                     "registered_volunteers"
                 ],
-                "attended_volunteers": class_data[class_name][
+
+                "attended_volunteers": class_data[
+                    class_name
+                ][
                     "attended_volunteers"
                 ],
-                "absent_volunteers": class_data[class_name][
+
+                "absent_volunteers": class_data[
+                    class_name
+                ][
                     "absent_volunteers"
                 ],
             }
         )
 
     # =====================================================
-    # RETURN REPORT
+    # GET EVENT EVIDENCE PHOTOS
+    # =====================================================
+
+    evidence_cursor = files_collection.find(
+        {
+            "event_id": event_object_id,
+            "file_type": "event_photo",
+        }
+    ).sort(
+        "uploaded_at",
+        1,
+    )
+
+    evidence_photos = []
+
+    async for file in evidence_cursor:
+
+        uploaded_at = file.get("uploaded_at")
+
+        if uploaded_at:
+
+            uploaded_at = uploaded_at.isoformat()
+
+        else:
+
+            uploaded_at = ""
+
+        evidence_photos.append(
+            {
+                "id": str(file["_id"]),
+
+                "file_name": file.get(
+                    "file_name",
+                    "",
+                ),
+
+                "file_url": file.get(
+                    "file_url",
+                    "",
+                ),
+
+                "imagekit_file_id": file.get(
+                    "imagekit_file_id",
+                    "",
+                ),
+
+                "uploaded_by": str(
+                    file.get(
+                        "uploaded_by"
+                    )
+                ),
+
+                "uploaded_at": uploaded_at,
+            }
+        )
+
+    # =====================================================
+    # RETURN COMPLETE REPORT
     # =====================================================
 
     return {
-        "event_id": str(event["_id"]),
+
+        "event_id": str(
+            event["_id"]
+        ),
 
         "event_title": event.get(
             "title",
@@ -317,4 +408,6 @@ async def generate_event_report(
         "year_breakdown": year_breakdown,
 
         "class_breakdown": class_breakdown,
+
+        "evidence_photos": evidence_photos,
     }

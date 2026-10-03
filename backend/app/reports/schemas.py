@@ -6,9 +6,13 @@ from pydantic import BaseModel
 # =========================================================
 
 class YearBreakdown(BaseModel):
+
     year: int
+
     registered_volunteers: int
+
     attended_volunteers: int
+
     absent_volunteers: int
 
 
@@ -17,10 +21,33 @@ class YearBreakdown(BaseModel):
 # =========================================================
 
 class ClassBreakdown(BaseModel):
+
     class_name: str
+
     registered_volunteers: int
+
     attended_volunteers: int
+
     absent_volunteers: int
+
+
+# =========================================================
+# EVENT EVIDENCE PHOTO
+# =========================================================
+
+class EventEvidencePhoto(BaseModel):
+
+    id: str
+
+    file_name: str
+
+    file_url: str
+
+    imagekit_file_id: str
+
+    uploaded_by: str
+
+    uploaded_at: str
 
 
 # =========================================================
@@ -28,6 +55,7 @@ class ClassBreakdown(BaseModel):
 # =========================================================
 
 class EventReportResponse(BaseModel):
+
     event_id: str
 
     event_title: str
@@ -73,3 +101,9 @@ class EventReportResponse(BaseModel):
     year_breakdown: list[YearBreakdown]
 
     class_breakdown: list[ClassBreakdown]
+
+    # -----------------------------------------------------
+    # Event evidence / photos
+    # -----------------------------------------------------
+
+    evidence_photos: list[EventEvidencePhoto]
