@@ -3,29 +3,51 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 
+import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
+import ServiceHours from "./pages/dashboard/ServiceHours";
+
 function App() {
-  return (
-    <Routes>
-      {/* Default page */}
-      <Route
-        path="/"
-        element={<Navigate to="/register" replace />}
-      />
+return ( <Routes>
+{/* DEFAULT */}
 
-      {/* Authentication */}
-      <Route
-        path="/login"
-        element={<Login />}
-      />
 
-      <Route
-        path="/register"
-        element={<Register />}
+  <Route
+    path="/"
+    element={
+      <Navigate
+        to="/register"
+        replace
       />
+    }
+  />
 
-      {/* Your other routes stay here */}
-    </Routes>
-  );
+  {/* AUTHENTICATION */}
+
+  <Route
+    path="/login"
+    element={<Login />}
+  />
+
+  <Route
+    path="/register"
+    element={<Register />}
+  />
+
+  {/* VOLUNTEER */}
+
+  <Route
+    path="/dashboard"
+    element={<VolunteerDashboard />}
+  />
+
+  <Route
+    path="/service-hours"
+    element={<ServiceHours />}
+  />
+</Routes>
+
+
+);
 }
 
 export default App;
