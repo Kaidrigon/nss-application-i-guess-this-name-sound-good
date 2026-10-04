@@ -1,19 +1,14 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/auth/Login";
-
 import Register from "./pages/auth/Register";
 
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
-
-import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 import ServiceHours from "./pages/dashboard/ServiceHours";
-
 import Events from "./pages/dashboard/Events";
-
 import History from "./pages/volunteer/History";
-
 import Profile from "./pages/dashboard/Profile";
 
 function App() {
