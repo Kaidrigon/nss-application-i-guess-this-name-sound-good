@@ -20,7 +20,6 @@ import {
 import {
     AccessTime,
     Dashboard as DashboardIcon,
-    Description,
     Event,
     Group,
     History,
@@ -28,6 +27,7 @@ import {
     Menu as MenuIcon,
     Person,
     Assessment,
+    PhotoLibrary,
 } from "@mui/icons-material";
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -239,27 +239,27 @@ function AdminDashboardLayout({ children }) {
                     <ListItemText primary="Service Hours" />
                 </ListItemButton>
 
-                {/* DOCUMENTS */}
+                {/* EVENT PHOTOS */}
 
-                <ListItemButton
-                    selected={location.pathname.startsWith(
-                        "/admin/documents"
-                    )}
-                    onClick={() =>
-                        handleNavigation("/admin/documents")
-                    }
-                    sx={{
-                        borderRadius: 2,
-                        mb: 0.5,
-                        minHeight: 48,
-                    }}
-                >
-                    <ListItemIcon>
-                        <Description />
-                    </ListItemIcon>
+<ListItemButton
+    selected={location.pathname.startsWith(
+        "/admin/event-photos"
+    )}
+    onClick={() =>
+        handleNavigation("/admin/event-photos")
+    }
+    sx={{
+        borderRadius: 2,
+        mb: 0.5,
+        minHeight: 48,
+    }}
+>
+    <ListItemIcon>
+        <PhotoLibrary />
+    </ListItemIcon>
 
-                    <ListItemText primary="Documents" />
-                </ListItemButton>
+    <ListItemText primary="Event Photos" />
+</ListItemButton>
 
                 {/* REPORTS */}
 

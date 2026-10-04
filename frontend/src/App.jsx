@@ -6,18 +6,22 @@ import Register from "./pages/auth/Register";
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
 import ServiceHours from "./pages/dashboard/ServiceHours";
 import Events from "./pages/dashboard/Events";
-import History from "./pages/volunteer/History";
 import Profile from "./pages/dashboard/Profile";
+
+import History from "./pages/volunteer/History";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Users from "./pages/admin/Users";
 import AdminEvents from "./pages/admin/Events";
 import EventAttendance from "./pages/admin/EventAttendance";
 import Reports from "./pages/admin/Reports";
+import EventPhotos from "./pages/admin/EventPhotos";
 
 
 function App() {
+
     return (
+
         <Routes>
 
             {/* =====================================================
@@ -99,22 +103,23 @@ function App() {
                 element={<AdminEvents />}
             />
 
-
-            {/* =====================================================
-                ADMIN EVENT ATTENDANCE
-            ====================================================== */}
-
             <Route
                 path="/admin/events/:eventId/attendance"
                 element={<EventAttendance />}
             />
 
             <Route
-    path="/admin/reports"
-    element={<Reports />}
-/>
+                path="/admin/event-photos"
+                element={<EventPhotos />}
+            />
+
+            <Route
+                path="/admin/reports"
+                element={<Reports />}
+            />
 
         </Routes>
+
     );
 }
 
