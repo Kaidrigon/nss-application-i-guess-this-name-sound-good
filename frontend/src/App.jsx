@@ -11,6 +11,7 @@ import Profile from "./pages/dashboard/Profile";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Users from "./pages/admin/Users";
+import AdminEvents from "./pages/admin/Events";
 
 function App() {
     return (
@@ -85,6 +86,11 @@ function App() {
             <Route
                 path="/admin/users"
                 element={<Users />}
+            />
+
+            <Route
+                path="/admin/events"
+                element={<AdminEvents />}
             />
 
         </Routes>
