@@ -43,7 +43,7 @@ export const loginUser = async (loginId, password) => {
         data,
         {
         headers: {
-            setup_key: setupKey,
+            "setup-key": setupKey,
         },
         }
     );
@@ -69,4 +69,4 @@ export const loginUser = async (loginId, password) => {
     const response = await api.get("/auth/users");
 
     return response.data;
-};
+    };

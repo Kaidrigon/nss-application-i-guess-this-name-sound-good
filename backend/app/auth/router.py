@@ -40,7 +40,6 @@ router = APIRouter(
 # =========================================================
 
 def is_email(value: str) -> bool:
-
     return bool(
         re.match(
             r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
@@ -54,7 +53,6 @@ def is_email(value: str) -> bool:
 # =========================================================
 
 async def find_user_by_login_id(login_id: str):
-
     return await users_collection.find_one(
         {
             "$or": [
@@ -156,14 +154,14 @@ async def register(user: RegisterRequest):
 async def register_admin(
     user: RegisterRequest,
 
-    # IMPORTANT:
-    # Frontend sends "setup-key".
+    # Frontend must send:
     #
-    # FastAPI automatically converts setup_key
-    # to the HTTP header "setup-key".
+    # setup-key: YOUR_ADMIN_SETUP_KEY
     #
+    # The alias makes the expected HTTP header explicit.
     setup_key: str = Header(
-        ...
+        ...,
+        alias="setup-key",
     ),
 ):
 
@@ -409,6 +407,10 @@ async def change_password(
     current_user=Depends(get_current_user),
 ):
 
+    # -----------------------------------------------------
+    # Verify current password
+    # -----------------------------------------------------
+
     if not verify_password(
         data.current_password,
         current_user["password_hash"],
@@ -418,6 +420,10 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect",
         )
+
+    # -----------------------------------------------------
+    # Prevent using the same password
+    # -----------------------------------------------------
 
     if verify_password(
         data.new_password,
@@ -429,9 +435,17 @@ async def change_password(
             detail="New password must be different",
         )
 
+    # -----------------------------------------------------
+    # Hash new password
+    # -----------------------------------------------------
+
     new_password_hash = hash_password(
         data.new_password
     )
+
+    # -----------------------------------------------------
+    # Update MongoDB
+    # -----------------------------------------------------
 
     await users_collection.update_one(
         {"_id": current_user["_id"]},
@@ -490,9 +504,17 @@ async def reset_password(
             ),
         )
 
+    # -----------------------------------------------------
+    # Hash new password
+    # -----------------------------------------------------
+
     new_password_hash = hash_password(
         data.new_password
     )
+
+    # -----------------------------------------------------
+    # Update MongoDB
+    # -----------------------------------------------------
 
     await users_collection.update_one(
         {"_id": user["_id"]},
