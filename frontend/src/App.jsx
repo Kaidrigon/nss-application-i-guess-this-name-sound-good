@@ -7,6 +7,7 @@ import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
 import ServiceHours from "./pages/dashboard/ServiceHours";
 import Events from "./pages/dashboard/Events";
 import History from "./pages/volunteer/History";
+import Profile from "./pages/dashboard/Profile";
 
 
 function App() {
@@ -72,6 +73,10 @@ function App() {
         element={<ServiceHours />}
       />
 
+      <Route
+  path="/profile"
+  element={<Profile />}
+/>
 
       {/* =====================================================
           SERVICE HISTORY
