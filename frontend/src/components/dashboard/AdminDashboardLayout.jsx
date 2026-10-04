@@ -217,7 +217,7 @@ function AdminDashboardLayout({ children }) {
                     <ListItemText primary="Events" />
                 </ListItemButton>
 
-                {/* SERVICE HOURS */}
+                {/* SERVICE HOURS
 
                 <ListItemButton
                     selected={location.pathname.startsWith(
@@ -237,7 +237,7 @@ function AdminDashboardLayout({ children }) {
                     </ListItemIcon>
 
                     <ListItemText primary="Service Hours" />
-                </ListItemButton>
+                </ListItemButton> */}
 
                 {/* EVENT PHOTOS */}
 
@@ -283,7 +283,7 @@ function AdminDashboardLayout({ children }) {
                     <ListItemText primary="Reports" />
                 </ListItemButton>
 
-                {/* HISTORY */}
+                {/* HISTORY
 
                 <ListItemButton
                     selected={location.pathname.startsWith(
@@ -303,7 +303,7 @@ function AdminDashboardLayout({ children }) {
                     </ListItemIcon>
 
                     <ListItemText primary="History" />
-                </ListItemButton>
+                </ListItemButton> */}
 
                 {/* PROFILE */}
 
