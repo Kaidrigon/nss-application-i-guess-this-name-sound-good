@@ -17,6 +17,68 @@ class UserRole(str, Enum):
 
 
 # =========================================================
+# USER UPDATE PROFILE
+# =========================================================
+
+class ProfileUpdateRequest(BaseModel):
+    name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+    )
+
+    login_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=150,
+    )
+
+    class_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+    )
+
+    year: int = Field(
+        ...,
+        ge=1,
+        le=4,
+    )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Name is required")
+
+        return value
+
+    @field_validator("login_id")
+    @classmethod
+    def validate_login_id(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Roll number or email is required"
+            )
+
+        return value
+
+    @field_validator("class_name")
+    @classmethod
+    def validate_class_name(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Class is required")
+
+        return value
+
+
+# =========================================================
 # CHANGE ROLE
 # =========================================================
 
@@ -29,7 +91,6 @@ class ChangeRoleRequest(BaseModel):
 # =========================================================
 
 class RegisterRequest(BaseModel):
-
     name: str = Field(
         ...,
         min_length=2,
@@ -59,7 +120,6 @@ class RegisterRequest(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
-
         value = value.strip()
 
         if not value:
@@ -70,7 +130,6 @@ class RegisterRequest(BaseModel):
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
-
         value = value.strip()
 
         if not value:
@@ -83,7 +142,6 @@ class RegisterRequest(BaseModel):
     @field_validator("class_name")
     @classmethod
     def validate_class_name(cls, value: str) -> str:
-
         value = value.strip()
 
         if not value:
@@ -94,7 +152,6 @@ class RegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, password: str) -> str:
-
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"
@@ -128,15 +185,12 @@ class RegisterRequest(BaseModel):
 # =========================================================
 
 class LoginRequest(BaseModel):
-
     login_id: str
-
     password: str
 
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
-
         value = value.strip()
 
         if not value:
@@ -152,9 +206,7 @@ class LoginRequest(BaseModel):
 # =========================================================
 
 class TokenResponse(BaseModel):
-
     access_token: str
-
     token_type: str
 
 
@@ -163,7 +215,6 @@ class TokenResponse(BaseModel):
 # =========================================================
 
 class UserResponse(BaseModel):
-
     id: str
 
     name: str
@@ -186,15 +237,12 @@ class UserResponse(BaseModel):
 # =========================================================
 
 class ChangePasswordRequest(BaseModel):
-
     current_password: str
-
     new_password: str
 
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, password: str) -> str:
-
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"
@@ -228,15 +276,12 @@ class ChangePasswordRequest(BaseModel):
 # =========================================================
 
 class ResetPasswordRequest(BaseModel):
-
     login_id: str
-
     new_password: str
 
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
-
         value = value.strip()
 
         if not value:
@@ -249,7 +294,6 @@ class ResetPasswordRequest(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, password: str) -> str:
-
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"
@@ -283,7 +327,6 @@ class ResetPasswordRequest(BaseModel):
 # =========================================================
 
 class CreateCoordinatorRequest(BaseModel):
-
     name: str = Field(
         ...,
         min_length=2,
@@ -301,7 +344,6 @@ class CreateCoordinatorRequest(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
-
         value = value.strip()
 
         if not value:
@@ -312,7 +354,6 @@ class CreateCoordinatorRequest(BaseModel):
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
-
         value = value.strip()
 
         if not value:
@@ -325,7 +366,6 @@ class CreateCoordinatorRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, password: str) -> str:
-
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"

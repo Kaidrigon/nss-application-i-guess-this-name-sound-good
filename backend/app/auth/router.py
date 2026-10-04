@@ -1,7 +1,14 @@
 # here bassically we are creating registration and logins and alot of things like hasing using security.py and schemas for request from schemas.py and then we are using the users_collection from database.py to store the user data in the db.
 import re
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    status,
+)
+
 from bson import ObjectId
 
 from app.auth.dependencies import (
@@ -17,6 +24,7 @@ from app.auth.schemas import (
     ChangePasswordRequest,
     ResetPasswordRequest,
     ChangeRoleRequest,
+    ProfileUpdateRequest,
 )
 
 from app.auth.security import (
@@ -26,6 +34,7 @@ from app.auth.security import (
 )
 
 from app.config import ADMIN_SETUP_KEY
+
 from app.database import users_collection
 
 
@@ -75,10 +84,6 @@ async def register(user: RegisterRequest):
 
     login_id = user.login_id.strip()
 
-    # -----------------------------------------------------
-    # Determine whether login ID is email or roll number
-    # -----------------------------------------------------
-
     if is_email(login_id):
 
         email = login_id.lower()
@@ -109,27 +114,16 @@ async def register(user: RegisterRequest):
                 detail="Roll number already registered",
             )
 
-    # -----------------------------------------------------
-    # Create volunteer
-    # -----------------------------------------------------
-
     new_user = {
         "name": user.name.strip(),
-
         "roll_number": roll_number,
-
         "email": email,
-
         "class_name": user.class_name.strip(),
-
         "year": user.year,
-
         "password_hash": hash_password(
             user.password
         ),
-
         "role": "volunteer",
-
         "service_hours": 0,
     }
 
@@ -153,47 +147,27 @@ async def register(user: RegisterRequest):
 )
 async def register_admin(
     user: RegisterRequest,
-
-    # Frontend must send:
-    #
-    # setup-key: YOUR_ADMIN_SETUP_KEY
-    #
-    # The alias makes the expected HTTP header explicit.
     setup_key: str = Header(
         ...,
         alias="setup-key",
     ),
 ):
 
-    # -----------------------------------------------------
-    # Check admin setup key
-    # -----------------------------------------------------
-
     if setup_key != ADMIN_SETUP_KEY:
-
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin setup key",
         )
-
-    # -----------------------------------------------------
-    # Only allow this endpoint if no admin exists
-    # -----------------------------------------------------
 
     existing_admin = await users_collection.find_one(
         {"role": "admin"}
     )
 
     if existing_admin:
-
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin setup has already been completed",
         )
-
-    # -----------------------------------------------------
-    # Determine login ID
-    # -----------------------------------------------------
 
     login_id = user.login_id.strip()
 
@@ -207,7 +181,6 @@ async def register_admin(
         )
 
         if existing_user:
-
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
@@ -223,33 +196,21 @@ async def register_admin(
         )
 
         if existing_user:
-
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Roll number already registered",
             )
 
-    # -----------------------------------------------------
-    # Create first admin
-    # -----------------------------------------------------
-
     new_admin = {
         "name": user.name.strip(),
-
         "roll_number": roll_number,
-
         "email": email,
-
         "class_name": user.class_name.strip(),
-
         "year": user.year,
-
         "password_hash": hash_password(
             user.password
         ),
-
         "role": "admin",
-
         "service_hours": 0,
     }
 
@@ -283,7 +244,6 @@ async def login(user: LoginRequest):
     )
 
     if not existing_user:
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -295,7 +255,6 @@ async def login(user: LoginRequest):
     )
 
     if not password_is_valid:
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -323,31 +282,135 @@ async def get_me(
 
     return {
         "id": str(current_user["_id"]),
-
         "name": current_user["name"],
-
         "roll_number": current_user.get(
             "roll_number"
         ),
-
         "email": current_user.get(
             "email"
         ),
-
         "class_name": current_user.get(
             "class_name"
         ),
-
         "year": current_user.get(
             "year"
         ),
-
         "role": current_user["role"],
-
         "service_hours": current_user.get(
             "service_hours",
             0,
         ),
+    }
+
+
+# =========================================================
+# UPDATE OWN PROFILE
+# =========================================================
+
+@router.patch("/profile")
+async def update_profile(
+    data: ProfileUpdateRequest,
+    current_user=Depends(get_current_user),
+):
+
+    login_id = data.login_id.strip()
+
+    # -----------------------------------------------------
+    # Determine whether new login ID is email or roll number
+    # -----------------------------------------------------
+
+    if is_email(login_id):
+
+        new_email = login_id.lower()
+        new_roll_number = None
+
+        existing_user = await users_collection.find_one(
+            {
+                "email": new_email,
+                "_id": {
+                    "$ne": current_user["_id"]
+                },
+            }
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already being used by another user",
+            )
+
+    else:
+
+        new_roll_number = login_id
+        new_email = None
+
+        existing_user = await users_collection.find_one(
+            {
+                "roll_number": new_roll_number,
+                "_id": {
+                    "$ne": current_user["_id"]
+                },
+            }
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Roll number is already being used by another user",
+            )
+
+    # -----------------------------------------------------
+    # Update profile
+    # -----------------------------------------------------
+
+    await users_collection.update_one(
+        {
+            "_id": current_user["_id"]
+        },
+        {
+            "$set": {
+                "name": data.name.strip(),
+                "roll_number": new_roll_number,
+                "email": new_email,
+                "class_name": data.class_name.strip(),
+                "year": data.year,
+            }
+        },
+    )
+
+    # -----------------------------------------------------
+    # Fetch updated user
+    # -----------------------------------------------------
+
+    updated_user = await users_collection.find_one(
+        {
+            "_id": current_user["_id"]
+        }
+    )
+
+    return {
+        "message": "Profile updated successfully",
+        "user": {
+            "id": str(updated_user["_id"]),
+            "name": updated_user["name"],
+            "roll_number": updated_user.get(
+                "roll_number"
+            ),
+            "email": updated_user.get(
+                "email"
+            ),
+            "class_name": updated_user.get(
+                "class_name"
+            ),
+            "year": updated_user.get(
+                "year"
+            ),
+            "role": updated_user["role"],
+            "service_hours": updated_user.get(
+                "service_hours",
+                0,
+            ),
+        },
     }
 
 
@@ -407,10 +470,6 @@ async def change_password(
     current_user=Depends(get_current_user),
 ):
 
-    # -----------------------------------------------------
-    # Verify current password
-    # -----------------------------------------------------
-
     if not verify_password(
         data.current_password,
         current_user["password_hash"],
@@ -420,10 +479,6 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect",
         )
-
-    # -----------------------------------------------------
-    # Prevent using the same password
-    # -----------------------------------------------------
 
     if verify_password(
         data.new_password,
@@ -435,20 +490,14 @@ async def change_password(
             detail="New password must be different",
         )
 
-    # -----------------------------------------------------
-    # Hash new password
-    # -----------------------------------------------------
-
     new_password_hash = hash_password(
         data.new_password
     )
 
-    # -----------------------------------------------------
-    # Update MongoDB
-    # -----------------------------------------------------
-
     await users_collection.update_one(
-        {"_id": current_user["_id"]},
+        {
+            "_id": current_user["_id"]
+        },
         {
             "$set": {
                 "password_hash": new_password_hash
@@ -481,15 +530,10 @@ async def reset_password(
     )
 
     if not user:
-
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-
-    # -----------------------------------------------------
-    # Coordinators can only reset volunteer passwords
-    # -----------------------------------------------------
 
     if (
         current_user["role"] == "coordinator"
@@ -504,20 +548,14 @@ async def reset_password(
             ),
         )
 
-    # -----------------------------------------------------
-    # Hash new password
-    # -----------------------------------------------------
-
     new_password_hash = hash_password(
         data.new_password
     )
 
-    # -----------------------------------------------------
-    # Update MongoDB
-    # -----------------------------------------------------
-
     await users_collection.update_one(
-        {"_id": user["_id"]},
+        {
+            "_id": user["_id"]
+        },
         {
             "$set": {
                 "password_hash": new_password_hash
@@ -553,27 +591,20 @@ async def get_users(
         users.append(
             {
                 "id": str(user["_id"]),
-
                 "name": user["name"],
-
                 "roll_number": user.get(
                     "roll_number"
                 ),
-
                 "email": user.get(
                     "email"
                 ),
-
                 "class_name": user.get(
                     "class_name"
                 ),
-
                 "year": user.get(
                     "year"
                 ),
-
                 "role": user["role"],
-
                 "service_hours": user.get(
                     "service_hours",
                     0,
@@ -595,10 +626,6 @@ async def change_user_role(
     current_user=Depends(require_admin),
 ):
 
-    # -----------------------------------------------------
-    # Validate ObjectId
-    # -----------------------------------------------------
-
     try:
 
         target_user_id = ObjectId(user_id)
@@ -610,12 +637,10 @@ async def change_user_role(
             detail="Invalid user ID",
         )
 
-    # -----------------------------------------------------
-    # Find target user
-    # -----------------------------------------------------
-
     target_user = await users_collection.find_one(
-        {"_id": target_user_id}
+        {
+            "_id": target_user_id
+        }
     )
 
     if not target_user:
@@ -624,10 +649,6 @@ async def change_user_role(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-
-    # -----------------------------------------------------
-    # Prevent admin from removing own admin role
-    # -----------------------------------------------------
 
     if (
         str(current_user["_id"]) == user_id
@@ -639,17 +660,15 @@ async def change_user_role(
             detail="You cannot remove your own admin role",
         )
 
-    # -----------------------------------------------------
-    # Prevent last admin from losing admin status
-    # -----------------------------------------------------
-
     if (
         target_user["role"] == "admin"
         and data.role != "admin"
     ):
 
         admin_count = await users_collection.count_documents(
-            {"role": "admin"}
+            {
+                "role": "admin"
+            }
         )
 
         if admin_count <= 1:
@@ -659,12 +678,10 @@ async def change_user_role(
                 detail="At least one admin must remain",
             )
 
-    # -----------------------------------------------------
-    # Update role
-    # -----------------------------------------------------
-
     await users_collection.update_one(
-        {"_id": target_user_id},
+        {
+            "_id": target_user_id
+        },
         {
             "$set": {
                 "role": data.role
@@ -674,8 +691,6 @@ async def change_user_role(
 
     return {
         "message": "User role updated successfully",
-
         "user_id": user_id,
-
         "new_role": data.role,
     }

@@ -16,6 +16,7 @@ import AdminEvents from "./pages/admin/Events";
 import EventAttendance from "./pages/admin/EventAttendance";
 import Reports from "./pages/admin/Reports";
 import EventPhotos from "./pages/admin/EventPhotos";
+import AdminProfile from "./pages/admin/Profile";
 
 
 function App() {
@@ -117,6 +118,11 @@ function App() {
                 path="/admin/reports"
                 element={<Reports />}
             />
+
+            <Route
+    path="/admin/profile"
+    element={<AdminProfile />}
+/>
 
         </Routes>
 
