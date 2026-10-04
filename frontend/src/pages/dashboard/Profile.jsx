@@ -15,6 +15,18 @@ function Profile() {
     const [error, setError] = useState("");
     const [uploadMessage, setUploadMessage] = useState("");
 
+    // ---------------------------------------------------------
+    // CHANGE PASSWORD STATE
+    // ---------------------------------------------------------
+
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+
+    const [changingPassword, setChangingPassword] = useState(false);
+    const [passwordMessage, setPasswordMessage] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+
     const certificateInputRef = useRef(null);
     const documentInputRef = useRef(null);
 
@@ -115,8 +127,6 @@ function Profile() {
         return;
         }
 
-        // Clear input so selecting the same file again
-        // will trigger the change event.
         event.target.value = "";
 
         setError("");
@@ -126,7 +136,7 @@ function Profile() {
         // FILE SIZE LIMIT
         // -------------------------------------------------------
 
-        const maxFileSize = 10 * 1024 * 1024; // 10 MB
+        const maxFileSize = 10 * 1024 * 1024;
 
         if (file.size > maxFileSize) {
         setError(
@@ -160,7 +170,7 @@ function Profile() {
         setUploadType(fileType);
 
         // -----------------------------------------------------
-        // STEP 1: GET IMAGEKIT AUTHENTICATION
+        // GET IMAGEKIT AUTHENTICATION
         // -----------------------------------------------------
 
         const authResponse = await api.get(
@@ -175,7 +185,7 @@ function Profile() {
         } = authResponse.data;
 
         // -----------------------------------------------------
-        // STEP 2: CREATE IMAGEKIT FORM DATA
+        // CREATE IMAGEKIT FORM DATA
         // -----------------------------------------------------
 
         const formData = new FormData();
@@ -188,7 +198,7 @@ function Profile() {
         formData.append("token", token);
 
         // -----------------------------------------------------
-        // STEP 3: UPLOAD DIRECTLY TO IMAGEKIT
+        // UPLOAD TO IMAGEKIT
         // -----------------------------------------------------
 
         const imageKitResponse = await fetch(
@@ -210,7 +220,7 @@ function Profile() {
         }
 
         // -----------------------------------------------------
-        // STEP 4: SAVE FILE METADATA IN OUR BACKEND
+        // SAVE METADATA IN OUR BACKEND
         // -----------------------------------------------------
 
         await api.post("/files/my", {
@@ -221,7 +231,7 @@ function Profile() {
         });
 
         // -----------------------------------------------------
-        // STEP 5: REFRESH FILE LIST
+        // REFRESH FILE LIST
         // -----------------------------------------------------
 
         await loadFiles();
@@ -242,6 +252,71 @@ function Profile() {
         } finally {
         setUploading(false);
         setUploadType("");
+        }
+    };
+
+    // ---------------------------------------------------------
+    // CHANGE PASSWORD
+    // ---------------------------------------------------------
+
+    const handleChangePassword = async (event) => {
+        event.preventDefault();
+
+        setPasswordError("");
+        setPasswordMessage("");
+
+        // -------------------------------------------------------
+        // CHECK CONFIRM PASSWORD
+        // -------------------------------------------------------
+
+        if (newPassword !== confirmPassword) {
+        setPasswordError(
+            "New password and confirm password do not match."
+        );
+
+        return;
+        }
+
+        // -------------------------------------------------------
+        // CHECK EMPTY FIELDS
+        // -------------------------------------------------------
+
+        if (!currentPassword || !newPassword) {
+        setPasswordError(
+            "Please fill in all password fields."
+        );
+
+        return;
+        }
+
+        try {
+        setChangingPassword(true);
+
+        await api.post(
+            "/auth/change-password",
+            {
+            current_password: currentPassword,
+            new_password: newPassword,
+            }
+        );
+
+        setPasswordMessage(
+            "Password changed successfully."
+        );
+
+        // Clear form after successful change
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        } catch (err) {
+        console.error(err);
+
+        setPasswordError(
+            err.response?.data?.detail ||
+            "Unable to change password."
+        );
+        } finally {
+        setChangingPassword(false);
         }
     };
 
@@ -371,10 +446,7 @@ function Profile() {
         <section>
             <h2>My Documents</h2>
 
-            {/* ---------------------------------------------------
-                HIDDEN FILE INPUTS
-                --------------------------------------------------- */}
-
+            {/* Hidden certificate input */}
             <input
             ref={certificateInputRef}
             type="file"
@@ -388,6 +460,7 @@ function Profile() {
             }
             />
 
+            {/* Hidden document input */}
             <input
             ref={documentInputRef}
             type="file"
@@ -400,10 +473,6 @@ function Profile() {
                 )
             }
             />
-
-            {/* ---------------------------------------------------
-                UPLOAD BUTTONS
-                --------------------------------------------------- */}
 
             <button
             type="button"
@@ -430,10 +499,6 @@ function Profile() {
             <p>
             JPG, PNG, WEBP or PDF. Maximum size: 10 MB.
             </p>
-
-            {/* ---------------------------------------------------
-                EXISTING FILES
-                --------------------------------------------------- */}
 
             {filesLoading ? (
             <p>Loading documents...</p>
@@ -466,6 +531,109 @@ function Profile() {
                 ))}
             </div>
             )}
+        </section>
+
+        {/* =====================================================
+            CHANGE PASSWORD
+            ===================================================== */}
+
+        <section>
+            <h2>Change Password</h2>
+
+            <p>
+            Update your account password.
+            </p>
+
+            <form onSubmit={handleChangePassword}>
+
+            {/* Current password */}
+            <div>
+                <label>
+                Current Password
+                </label>
+
+                <input
+                type="password"
+                value={currentPassword}
+                onChange={(event) =>
+                    setCurrentPassword(
+                    event.target.value
+                    )
+                }
+                placeholder="Enter current password"
+                autoComplete="current-password"
+                />
+            </div>
+
+            {/* New password */}
+            <div>
+                <label>
+                New Password
+                </label>
+
+                <input
+                type="password"
+                value={newPassword}
+                onChange={(event) =>
+                    setNewPassword(
+                    event.target.value
+                    )
+                }
+                placeholder="Enter new password"
+                autoComplete="new-password"
+                />
+            </div>
+
+            {/* Confirm password */}
+            <div>
+                <label>
+                Confirm New Password
+                </label>
+
+                <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) =>
+                    setConfirmPassword(
+                    event.target.value
+                    )
+                }
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                />
+            </div>
+
+            {/* Password requirements */}
+            <p>
+                Password must be at least 8 characters and
+                contain an uppercase letter, lowercase letter,
+                number, and special character.
+            </p>
+
+            {/* Password error */}
+            {passwordError && (
+                <p>
+                {passwordError}
+                </p>
+            )}
+
+            {/* Password success */}
+            {passwordMessage && (
+                <p>
+                {passwordMessage}
+                </p>
+            )}
+
+            <button
+                type="submit"
+                disabled={changingPassword}
+            >
+                {changingPassword
+                ? "Changing Password..."
+                : "Change Password"}
+            </button>
+
+            </form>
         </section>
         </div>
     );
