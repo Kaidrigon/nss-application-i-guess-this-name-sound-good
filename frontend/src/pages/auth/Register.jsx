@@ -1,6 +1,6 @@
-    import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-    import {
+import {
     Alert,
     Box,
     Button,
@@ -17,26 +17,26 @@
     Select,
     TextField,
     Typography,
-    } from "@mui/material";
+} from "@mui/material";
 
-    import {
+import {
     AdminPanelSettings,
     Lock,
     Person,
     School,
-    } from "@mui/icons-material";
+} from "@mui/icons-material";
 
-    import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-    import {
+import {
     getAdmins,
     registerFirstAdmin,
     registerVolunteer,
-    } from "../../services/auth";
+} from "../../services/auth";
 
-    import nssLogo from "../../assets/nss-logo.png";
+import nssLogo from "../../assets/nss-logo.png";
 
-    function Register() {
+function Register() {
     const navigate = useNavigate();
 
     const [mode, setMode] = useState("volunteer");
@@ -49,8 +49,7 @@
     const [className, setClassName] = useState("");
     const [year, setYear] = useState("");
     const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] =
-    useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
 
     const [setupKey, setSetupKey] = useState("");
 
@@ -63,29 +62,26 @@
     // -------------------------------------------------------
 
     useEffect(() => {
-    const loadAdmins = async () => {
-    try {
-    setLoadingAdmins(true);
+        const loadAdmins = async () => {
+            try {
+                setLoadingAdmins(true);
 
+                const data = await getAdmins();
 
-        const data = await getAdmins();
+                setAdmins(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error(
+                    "Failed to load administrators:",
+                    error
+                );
 
-        setAdmins(Array.isArray(data) ? data : []);
-    } catch (error) {
-        console.error(
-        "Failed to load administrators:",
-        error
-        );
+                setAdmins([]);
+            } finally {
+                setLoadingAdmins(false);
+            }
+        };
 
-        setAdmins([]);
-    } finally {
-        setLoadingAdmins(false);
-    }
-    };
-
-    loadAdmins();
-
-
+        loadAdmins();
     }, []);
 
     // -------------------------------------------------------
@@ -93,26 +89,26 @@
     // -------------------------------------------------------
 
     const passwordChecks = useMemo(
-    () => ({
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    number: /\d/.test(password),
-    special: /[^A-Za-z0-9]/.test(password),
-    }),
-    [password]
+        () => ({
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /\d/.test(password),
+            special: /[^A-Za-z0-9]/.test(password),
+        }),
+        [password]
     );
 
     const passwordIsValid =
-    passwordChecks.length &&
-    passwordChecks.uppercase &&
-    passwordChecks.lowercase &&
-    passwordChecks.number &&
-    passwordChecks.special;
+        passwordChecks.length &&
+        passwordChecks.uppercase &&
+        passwordChecks.lowercase &&
+        passwordChecks.number &&
+        passwordChecks.special;
 
     const passwordsMatch =
-    password.length > 0 &&
-    password === confirmPassword;
+        password.length > 0 &&
+        password === confirmPassword;
 
     const adminExists = admins.length > 0;
 
@@ -121,13 +117,51 @@
     // -------------------------------------------------------
 
     const handleModeChange = (event) => {
-    setMode(event.target.value);
+        setMode(event.target.value);
+        setError("");
+        setSuccess("");
+    };
 
-    ```
-    setError("");
-    setSuccess("");
-    ```
+    // -------------------------------------------------------
+    // SAFE ERROR MESSAGE
+    // -------------------------------------------------------
 
+    const getErrorMessage = (error) => {
+        const detail = error?.response?.data?.detail;
+
+        if (typeof detail === "string") {
+            return detail;
+        }
+
+        if (Array.isArray(detail)) {
+            return detail
+                .map((item) => {
+                    if (typeof item === "string") {
+                        return item;
+                    }
+
+                    if (item?.msg) {
+                        return item.msg;
+                    }
+
+                    return "Invalid input.";
+                })
+                .join(", ");
+        }
+
+        if (detail && typeof detail === "object") {
+            if (detail.msg) {
+                return detail.msg;
+            }
+
+            return "The submitted information is invalid.";
+        }
+
+        if (error?.message) {
+            return error.message;
+        }
+
+        return "Registration failed. Please try again.";
     };
 
     // -------------------------------------------------------
@@ -135,123 +169,132 @@
     // -------------------------------------------------------
 
     const handleSubmit = async (event) => {
-    event.preventDefault();
+        event.preventDefault();
 
+        setError("");
+        setSuccess("");
 
-    setError("");
-    setSuccess("");
+        // Coordinator accounts cannot be created publicly
+        if (mode === "coordinator") {
+            setError(
+                "Coordinator accounts cannot be created through registration. Please register as a volunteer and contact an administrator."
+            );
 
-    if (mode === "coordinator") {
-    setError(
-        "Coordinator accounts cannot be created through registration. Please register as a volunteer and contact an administrator."
-    );
+            return;
+        }
 
-    return;
-    }
+        // First admin can only be created when no admin exists
+        if (mode === "admin" && adminExists) {
+            setError(
+                "First-admin registration is no longer available. Please register as a volunteer and contact an administrator."
+            );
 
-    if (mode === "admin" && adminExists) {
-    setError(
-        "First-admin registration is no longer available. Please register as a volunteer and contact an administrator."
-    );
+            return;
+        }
 
-    return;
-    }
+        // Name validation
+        if (!name.trim()) {
+            setError("Please enter your name.");
+            return;
+        }
 
-    if (!name.trim()) {
-    setError("Please enter your name.");
-    return;
-    }
+        // Login ID validation
+        if (!loginId.trim()) {
+            setError(
+                "Please enter your roll number or email."
+            );
+            return;
+        }
 
-    if (!loginId.trim()) {
-    setError(
-        "Please enter your roll number or email."
-    );
-    return;
-    }
+        // Class validation
+        if (!className.trim()) {
+            setError("Please enter your class.");
+            return;
+        }
 
-    if (!className.trim()) {
-    setError("Please enter your class.");
-    return;
-    }
+        // Year validation
+        if (!year) {
+            setError("Please select your year.");
+            return;
+        }
 
-    if (!year) {
-    setError("Please select your year.");
-    return;
-    }
+        // Password validation
+        if (!passwordIsValid) {
+            setError(
+                "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+            );
+            return;
+        }
 
-    if (!passwordIsValid) {
-    setError(
-        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
-    );
-    return;
-    }
+        // Confirm password
+        if (!passwordsMatch) {
+            setError("Passwords do not match.");
+            return;
+        }
 
-    if (!passwordsMatch) {
-    setError("Passwords do not match.");
-    return;
-    }
+        // Admin setup key
+        if (mode === "admin" && !setupKey.trim()) {
+            setError("Please enter the admin setup key.");
+            return;
+        }
 
-    if (mode === "admin" && !setupKey.trim()) {
-    setError("Please enter the admin setup key.");
-    return;
-    }
+        try {
+            setLoading(true);
 
-    try {
-    setLoading(true);
+            const registrationData = {
+                name: name.trim(),
+                login_id: loginId.trim(),
+                class_name: className.trim(),
+                year: Number(year),
+                password,
+            };
 
-    const registrationData = {
-        name: name.trim(),
-        login_id: loginId.trim(),
-        class_name: className.trim(),
-        year: Number(year),
-        password,
-    };
+            if (mode === "admin") {
+                await registerFirstAdmin(
+                    registrationData,
+                    setupKey.trim()
+                );
 
-    if (mode === "admin") {
-        await registerFirstAdmin(
-        registrationData,
-        setupKey.trim()
-        );
+                setSuccess(
+                    "Admin account created successfully. You can now sign in."
+                );
+            } else {
+                await registerVolunteer(registrationData);
 
-        setSuccess(
-        "Admin account created successfully. You can now sign in."
-        );
-    } else {
-        await registerVolunteer(registrationData);
+                setSuccess(
+                    "Volunteer account created successfully. You can now sign in."
+                );
+            }
 
-        setSuccess(
-        "Volunteer account created successfully. You can now sign in."
-        );
-    }
+            // Clear form
+            setName("");
+            setLoginId("");
+            setClassName("");
+            setYear("");
+            setPassword("");
+            setConfirmPassword("");
+            setSetupKey("");
 
-    setName("");
-    setLoginId("");
-    setClassName("");
-    setYear("");
-    setPassword("");
-    setConfirmPassword("");
-    setSetupKey("");
+            // Refresh admin list after first admin creation
+            if (mode === "admin") {
+                const updatedAdmins = await getAdmins();
 
-    if (mode === "admin") {
-        const updatedAdmins = await getAdmins();
+                setAdmins(
+                    Array.isArray(updatedAdmins)
+                        ? updatedAdmins
+                        : []
+                );
+            }
+        } catch (error) {
+            console.error(
+                "Registration failed:",
+                error
+            );
 
-        setAdmins(
-        Array.isArray(updatedAdmins)
-            ? updatedAdmins
-            : []
-        );
-    }
-    } catch (error) {
-    const message =
-        error.response?.data?.detail ||
-        "Registration failed. Please try again.";
-
-    setError(message);
-    } finally {
-    setLoading(false);
-    }
-
-
+            setError(getErrorMessage(error));
+        } finally {
+            setLoading(false);
+        }
     };
 
     // -------------------------------------------------------
@@ -259,70 +302,69 @@
     // -------------------------------------------------------
 
     const AdminInformation = () => {
-    if (loadingAdmins) {
-    return (
-    <Alert
-    severity="info"
-    sx={{
-    mb: 3,
-    borderRadius: 2,
-    }}
-    >
-    Checking administrator status... </Alert>
-    );
-    }
+        if (loadingAdmins) {
+            return (
+                <Alert
+                    severity="info"
+                    sx={{
+                        mb: 3,
+                        borderRadius: 2,
+                    }}
+                >
+                    Checking administrator status...
+                </Alert>
+            );
+        }
 
+        if (!adminExists) {
+            return null;
+        }
 
-    if (!adminExists) {
-    return null;
-    }
-
-    return (
-    <Alert
-        severity="info"
-        icon={<AdminPanelSettings />}
-        sx={{
-        mb: 3,
-        alignItems: "flex-start",
-        borderRadius: 2,
-        }}
-    >
-        <Typography
-        variant="body2"
-        fontWeight={600}
-        sx={{ mb: 0.5 }}
-        >
-        First-admin registration is unavailable
-        </Typography>
-
-        <Typography variant="body2">
-        This NSS system already has an administrator.
-        Please register as a volunteer and contact an
-        administrator to have your role changed.
-        </Typography>
-
-        <Box sx={{ mt: 1 }}>
-        <Typography
-            variant="body2"
-            fontWeight={600}
-        >
-            Current administrator
-            {admins.length > 1 ? "s" : ""}:
-        </Typography>
-
-        {admins.map((admin, index) => (
-            <Typography
-            key={`${admin.name}-${index}`}
-            variant="body2"
+        return (
+            <Alert
+                severity="info"
+                icon={<AdminPanelSettings />}
+                sx={{
+                    mb: 3,
+                    alignItems: "flex-start",
+                    borderRadius: 2,
+                }}
             >
-            • {admin.name}
-            </Typography>
-        ))}
-        </Box>
-    </Alert>
-    );
+                <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    sx={{ mb: 0.5 }}
+                >
+                    First-admin registration is unavailable
+                </Typography>
 
+                <Typography variant="body2">
+                    This NSS system already has an
+                    administrator. Please register as a
+                    volunteer and contact an administrator
+                    to have your role changed.
+                </Typography>
 
+                <Box sx={{ mt: 1 }}>
+                    <Typography
+                        variant="body2"
+                        fontWeight={600}
+                    >
+                        Current administrator
+                        {admins.length > 1 ? "s" : ""}:
+                    </Typography>
+
+                    {admins.map((admin, index) => (
+                        <Typography
+                            key={`${admin.name}-${index}`}
+                            variant="body2"
+                        >
+                            • {admin.name}
+                        </Typography>
+                    ))}
+                </Box>
+            </Alert>
+        );
     };
 
     // -------------------------------------------------------
@@ -330,54 +372,53 @@
     // -------------------------------------------------------
 
     const CoordinatorInformation = () => {
-    return (
-    <Alert
-    severity="info"
-    icon={<AdminPanelSettings />}
-    sx={{
-    mb: 3,
-    alignItems: "flex-start",
-    borderRadius: 2,
-    }}
-    >
-    <Typography
-    variant="body2"
-    fontWeight={600}
-    sx={{ mb: 0.5 }}
-    >
-    Coordinator accounts cannot be self-created </Typography>
-
-
-        <Typography variant="body2">
-        Please register as a volunteer and contact an
-        administrator to have your role changed to
-        coordinator.
-        </Typography>
-
-        {admins.length > 0 && (
-        <Box sx={{ mt: 1 }}>
-            <Typography
-            variant="body2"
-            fontWeight={600}
+        return (
+            <Alert
+                severity="info"
+                icon={<AdminPanelSettings />}
+                sx={{
+                    mb: 3,
+                    alignItems: "flex-start",
+                    borderRadius: 2,
+                }}
             >
-            Current administrator
-            {admins.length > 1 ? "s" : ""}:
-            </Typography>
+                <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    sx={{ mb: 0.5 }}
+                >
+                    Coordinator accounts cannot be
+                    self-created
+                </Typography>
 
-            {admins.map((admin, index) => (
-            <Typography
-                key={`${admin.name}-${index}`}
-                variant="body2"
-            >
-                • {admin.name}
-            </Typography>
-            ))}
-        </Box>
-        )}
-    </Alert>
-    );
+                <Typography variant="body2">
+                    Please register as a volunteer and
+                    contact an administrator to have your
+                    role changed to coordinator.
+                </Typography>
 
+                {admins.length > 0 && (
+                    <Box sx={{ mt: 1 }}>
+                        <Typography
+                            variant="body2"
+                            fontWeight={600}
+                        >
+                            Current administrator
+                            {admins.length > 1 ? "s" : ""}:
+                        </Typography>
 
+                        {admins.map((admin, index) => (
+                            <Typography
+                                key={`${admin.name}-${index}`}
+                                variant="body2"
+                            >
+                                • {admin.name}
+                            </Typography>
+                        ))}
+                    </Box>
+                )}
+            </Alert>
+        );
     };
 
     // -------------------------------------------------------
@@ -385,586 +426,609 @@
     // -------------------------------------------------------
 
     return (
-    <Box
-    sx={{
-    minHeight: "100dvh",
-
-
-        background:
-        "radial-gradient(circle at top right, #E8B6C7 0%, transparent 35%), #FBF7F2",
-
-        px: {
-        xs: 1.5,
-        sm: 2,
-        },
-
-        py: {
-        xs: 2.5,
-        sm: 5,
-        },
-
-        boxSizing: "border-box",
-    }}
-    >
-    <Container
-        maxWidth="sm"
-        disableGutters
-        sx={{
-        width: "100%",
-        }}
-    >
-        <Card
-        elevation={0}
-        sx={{
-            width: "100%",
-            borderRadius: {
-            xs: 3,
-            sm: 4,
-            },
-
-            border:
-            "1px solid rgba(75, 22, 76, 0.08)",
-
-            boxShadow:
-            "0 20px 60px rgba(75, 22, 76, 0.12)",
-
-            overflow: "hidden",
-        }}
-        >
-        <CardContent
+        <Box
             sx={{
-            p: {
-                xs: 2.5,
-                sm: 5,
-            },
+                minHeight: "100dvh",
+
+                background:
+                    "radial-gradient(circle at top right, #E8B6C7 0%, transparent 35%), #FBF7F2",
+
+                px: {
+                    xs: 1.5,
+                    sm: 2,
+                },
+
+                py: {
+                    xs: 2.5,
+                    sm: 5,
+                },
+
+                boxSizing: "border-box",
             }}
         >
-            {/* LOGO + HEADER */}
-
-            <Box
-            sx={{
-                textAlign: "center",
-                mb: {
-                xs: 3,
-                sm: 4,
-                },
-            }}
-            >
-            <Box
-                component="img"
-                src={nssLogo}
-                alt="NSS Logo"
+            <Container
+                maxWidth="sm"
+                disableGutters
                 sx={{
-                width: {
-                    xs: 76,
-                    sm: 92,
-                },
-
-                height: {
-                    xs: 76,
-                    sm: 92,
-                },
-
-                objectFit: "contain",
-                mb: 1.5,
-                }}
-            />
-
-            <Typography
-                variant="h4"
-                component="h1"
-                sx={{
-                fontSize: {
-                    xs: "1.7rem",
-                    sm: "2.125rem",
-                },
-
-                fontWeight: 700,
+                    width: "100%",
                 }}
             >
-                Create your account
-            </Typography>
-
-            <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{
-                mt: 0.75,
-                }}
-            >
-                Join the NSS community
-            </Typography>
-            </Box>
-
-            {/* REGISTRATION MODE */}
-
-            <FormControl
-            sx={{
-                width: "100%",
-                mb: 3,
-            }}
-            >
-            <RadioGroup
-                value={mode}
-                onChange={handleModeChange}
-                sx={{
-                display: "grid",
-
-                gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "repeat(3, 1fr)",
-                },
-
-                gap: 1,
-
-                width: "100%",
-                }}
-            >
-                <FormControlLabel
-                value="volunteer"
-                control={<Radio />}
-                label="Volunteer"
-                sx={{
-                    m: 0,
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 2,
-                    border:
-                    "1px solid rgba(75, 22, 76, 0.08)",
-                }}
-                />
-
-                <FormControlLabel
-                value="admin"
-                control={<Radio />}
-                label="First Admin"
-                sx={{
-                    m: 0,
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 2,
-                    border:
-                    "1px solid rgba(75, 22, 76, 0.08)",
-                }}
-                />
-
-                <FormControlLabel
-                value="coordinator"
-                control={<Radio />}
-                label="Coordinator"
-                sx={{
-                    m: 0,
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 2,
-                    border:
-                    "1px solid rgba(75, 22, 76, 0.08)",
-                }}
-                />
-            </RadioGroup>
-            </FormControl>
-
-            {/* ADMIN INFORMATION */}
-
-            {mode === "admin" && (
-            <AdminInformation />
-            )}
-
-            {/* COORDINATOR INFORMATION */}
-
-            {mode === "coordinator" && (
-            <CoordinatorInformation />
-            )}
-
-            {/* ERROR */}
-
-            {error && (
-            <Alert
-                severity="error"
-                sx={{
-                mb: 3,
-                borderRadius: 2,
-                }}
-                onClose={() => setError("")}
-            >
-                {error}
-            </Alert>
-            )}
-
-            {/* SUCCESS */}
-
-            {success && (
-            <Alert
-                severity="success"
-                sx={{
-                mb: 3,
-                borderRadius: 2,
-                }}
-                action={
-                <Button
-                    color="inherit"
-                    size="small"
-                    onClick={() =>
-                    navigate("/login")
-                    }
-                >
-                    Sign in
-                </Button>
-                }
-            >
-                {success}
-            </Alert>
-            )}
-
-            {/* FORM */}
-
-            {mode !== "coordinator" &&
-            !(mode === "admin" && adminExists) && (
-                <Box
-                component="form"
-                onSubmit={handleSubmit}
-                noValidate
-                >
-                {/* NAME */}
-
-                <TextField
-                    fullWidth
-                    label="Full name"
-                    value={name}
-                    onChange={(event) =>
-                    setName(event.target.value)
-                    }
-                    margin="normal"
-                    autoComplete="name"
-                    slotProps={{
-                    input: {
-                        startAdornment: (
-                        <InputAdornment position="start">
-                            <Person />
-                        </InputAdornment>
-                        ),
-                    },
-                    }}
+                <Card
+                    elevation={0}
                     sx={{
-                    "& .MuiInputBase-root": {
-                        minHeight: 56,
-                    },
-                    }}
-                />
+                        width: "100%",
 
-                {/* LOGIN ID */}
-
-                <TextField
-                    fullWidth
-                    label="Roll number or email"
-                    value={loginId}
-                    onChange={(event) =>
-                    setLoginId(event.target.value)
-                    }
-                    margin="normal"
-                    autoComplete="username"
-                    helperText="You can use either your roll number or email."
-                    slotProps={{
-                    input: {
-                        startAdornment: (
-                        <InputAdornment position="start">
-                            <School />
-                        </InputAdornment>
-                        ),
-                    },
-                    }}
-                    sx={{
-                    "& .MuiInputBase-root": {
-                        minHeight: 56,
-                    },
-                    }}
-                />
-
-                {/* CLASS */}
-
-                <TextField
-                    fullWidth
-                    label="Class"
-                    value={className}
-                    onChange={(event) =>
-                    setClassName(event.target.value)
-                    }
-                    margin="normal"
-                    placeholder="e.g. BCA 2nd Year"
-                    sx={{
-                    "& .MuiInputBase-root": {
-                        minHeight: 56,
-                    },
-                    }}
-                />
-
-                {/* YEAR */}
-
-                <FormControl
-                    fullWidth
-                    margin="normal"
-                >
-                    <InputLabel id="year-label">
-                    Year
-                    </InputLabel>
-
-                    <Select
-                    labelId="year-label"
-                    label="Year"
-                    value={year}
-                    onChange={(event) =>
-                        setYear(event.target.value)
-                    }
-                    sx={{
-                        minHeight: 56,
-                    }}
-                    >
-                    <MenuItem value={1}>
-                        1st Year
-                    </MenuItem>
-
-                    <MenuItem value={2}>
-                        2nd Year
-                    </MenuItem>
-
-                    <MenuItem value={3}>
-                        3rd Year
-                    </MenuItem>
-
-                    <MenuItem value={4}>
-                        4th Year
-                    </MenuItem>
-                    </Select>
-                </FormControl>
-
-                {/* ADMIN SETUP KEY */}
-
-                {mode === "admin" && (
-                    <TextField
-                    fullWidth
-                    label="Admin setup key"
-                    type="password"
-                    value={setupKey}
-                    onChange={(event) =>
-                        setSetupKey(
-                        event.target.value
-                        )
-                    }
-                    margin="normal"
-                    helperText="Enter the setup key configured in the backend."
-                    slotProps={{
-                        input: {
-                        startAdornment: (
-                            <InputAdornment position="start">
-                            <AdminPanelSettings />
-                            </InputAdornment>
-                        ),
+                        borderRadius: {
+                            xs: 3,
+                            sm: 4,
                         },
-                    }}
-                    sx={{
-                        "& .MuiInputBase-root": {
-                        minHeight: 56,
-                        },
-                    }}
-                    />
-                )}
 
-                {/* PASSWORD */}
+                        border:
+                            "1px solid rgba(75, 22, 76, 0.08)",
 
-                <TextField
-                    fullWidth
-                    label="Password"
-                    type="password"
-                    value={password}
-                    onChange={(event) =>
-                    setPassword(event.target.value)
-                    }
-                    margin="normal"
-                    autoComplete="new-password"
-                    slotProps={{
-                    input: {
-                        startAdornment: (
-                        <InputAdornment position="start">
-                            <Lock />
-                        </InputAdornment>
-                        ),
-                    },
-                    }}
-                    sx={{
-                    "& .MuiInputBase-root": {
-                        minHeight: 56,
-                    },
-                    }}
-                />
+                        boxShadow:
+                            "0 20px 60px rgba(75, 22, 76, 0.12)",
 
-                {/* PASSWORD RULES */}
-
-                <Box
-                    sx={{
-                    mt: 1,
-                    mb: 1,
-                    px: 1,
+                        overflow: "hidden",
                     }}
                 >
-                    <Typography
-                    variant="caption"
-                    display="block"
-                    color={
-                        passwordChecks.length
-                        ? "success.main"
-                        : "text.secondary"
-                    }
+                    <CardContent
+                        sx={{
+                            p: {
+                                xs: 2.5,
+                                sm: 5,
+                            },
+                        }}
                     >
-                    {passwordChecks.length
-                        ? "✓"
-                        : "•"}{" "}
-                    At least 8 characters
-                    </Typography>
+                        {/* LOGO + HEADER */}
 
-                    <Typography
+                        <Box
+                            sx={{
+                                textAlign: "center",
+                                mb: {
+                                    xs: 3,
+                                    sm: 4,
+                                },
+                            }}
+                        >
+                            <Box
+                                component="img"
+                                src={nssLogo}
+                                alt="NSS Logo"
+                                sx={{
+                                    width: {
+                                        xs: 76,
+                                        sm: 92,
+                                    },
+
+                                    height: {
+                                        xs: 76,
+                                        sm: 92,
+                                    },
+
+                                    objectFit: "contain",
+                                    mb: 1.5,
+                                }}
+                            />
+
+                            <Typography
+                                variant="h4"
+                                component="h1"
+                                sx={{
+                                    fontSize: {
+                                        xs: "1.7rem",
+                                        sm: "2.125rem",
+                                    },
+
+                                    fontWeight: 700,
+                                }}
+                            >
+                                Create your account
+                            </Typography>
+
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{
+                                    mt: 0.75,
+                                }}
+                            >
+                                Join the NSS community
+                            </Typography>
+                        </Box>
+
+                        {/* REGISTRATION MODE */}
+
+                        <FormControl
+                            sx={{
+                                width: "100%",
+                                mb: 3,
+                            }}
+                        >
+                            <RadioGroup
+                                value={mode}
+                                onChange={handleModeChange}
+                                sx={{
+                                    display: "grid",
+
+                                    gridTemplateColumns: {
+                                        xs: "1fr",
+                                        sm: "repeat(3, 1fr)",
+                                    },
+
+                                    gap: 1,
+
+                                    width: "100%",
+                                }}
+                            >
+                                <FormControlLabel
+                                    value="volunteer"
+                                    control={<Radio />}
+                                    label="Volunteer"
+                                    sx={{
+                                        m: 0,
+                                        px: 1,
+                                        py: 0.5,
+                                        borderRadius: 2,
+                                        border:
+                                            "1px solid rgba(75, 22, 76, 0.08)",
+                                    }}
+                                />
+
+                                <FormControlLabel
+                                    value="admin"
+                                    control={<Radio />}
+                                    label="First Admin"
+                                    sx={{
+                                        m: 0,
+                                        px: 1,
+                                        py: 0.5,
+                                        borderRadius: 2,
+                                        border:
+                                            "1px solid rgba(75, 22, 76, 0.08)",
+                                    }}
+                                />
+
+                                <FormControlLabel
+                                    value="coordinator"
+                                    control={<Radio />}
+                                    label="Coordinator"
+                                    sx={{
+                                        m: 0,
+                                        px: 1,
+                                        py: 0.5,
+                                        borderRadius: 2,
+                                        border:
+                                            "1px solid rgba(75, 22, 76, 0.08)",
+                                    }}
+                                />
+                            </RadioGroup>
+                        </FormControl>
+
+                        {/* ADMIN INFORMATION */}
+
+                        {mode === "admin" && (
+                            <AdminInformation />
+                        )}
+
+                        {/* COORDINATOR INFORMATION */}
+
+                        {mode === "coordinator" && (
+                            <CoordinatorInformation />
+                        )}
+
+                        {/* ERROR */}
+
+                        {error && (
+                            <Alert
+                                severity="error"
+                                sx={{
+                                    mb: 3,
+                                    borderRadius: 2,
+                                }}
+                                onClose={() =>
+                                    setError("")
+                                }
+                            >
+                                {error}
+                            </Alert>
+                        )}
+
+                        {/* SUCCESS */}
+
+                        {success && (
+                            <Alert
+                                severity="success"
+                                sx={{
+                                    mb: 3,
+                                    borderRadius: 2,
+                                }}
+                                action={
+                                    <Button
+                                        color="inherit"
+                                        size="small"
+                                        onClick={() =>
+                                            navigate("/login")
+                                        }
+                                    >
+                                        Sign in
+                                    </Button>
+                                }
+                            >
+                                {success}
+                            </Alert>
+                        )}
+
+                        {/* FORM */}
+
+                        {mode !== "coordinator" &&
+                            !(
+                                mode === "admin" &&
+                                adminExists
+                            ) && (
+                                <Box
+                                    component="form"
+                                    onSubmit={handleSubmit}
+                                    noValidate
+                                >
+                                    {/* NAME */}
+
+                                    <TextField
+                                        fullWidth
+                                        label="Full name"
+                                        value={name}
+                                        onChange={(event) =>
+                                            setName(
+                                                event.target.value
+                                            )
+                                        }
+                                        margin="normal"
+                                        autoComplete="name"
+                                        slotProps={{
+                                            input: {
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <Person />
+                                                    </InputAdornment>
+                                                ),
+                                            },
+                                        }}
+                                        sx={{
+                                            "& .MuiInputBase-root":
+                                                {
+                                                    minHeight: 56,
+                                                },
+                                        }}
+                                    />
+
+                                    {/* LOGIN ID */}
+
+                                    <TextField
+                                        fullWidth
+                                        label="Roll number or email"
+                                        value={loginId}
+                                        onChange={(event) =>
+                                            setLoginId(
+                                                event.target.value
+                                            )
+                                        }
+                                        margin="normal"
+                                        autoComplete="username"
+                                        helperText="You can use either your roll number or email."
+                                        slotProps={{
+                                            input: {
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <School />
+                                                    </InputAdornment>
+                                                ),
+                                            },
+                                        }}
+                                        sx={{
+                                            "& .MuiInputBase-root":
+                                                {
+                                                    minHeight: 56,
+                                                },
+                                        }}
+                                    />
+
+                                    {/* CLASS */}
+
+                                    <TextField
+                                        fullWidth
+                                        label="Class"
+                                        value={className}
+                                        onChange={(event) =>
+                                            setClassName(
+                                                event.target.value
+                                            )
+                                        }
+                                        margin="normal"
+                                        placeholder="e.g. BCA 2nd Year"
+                                        sx={{
+                                            "& .MuiInputBase-root":
+                                                {
+                                                    minHeight: 56,
+                                                },
+                                        }}
+                                    />
+
+                                    {/* YEAR */}
+
+                                    <FormControl
+                                        fullWidth
+                                        margin="normal"
+                                    >
+                                        <InputLabel id="year-label">
+                                            Year
+                                        </InputLabel>
+
+                                        <Select
+                                            labelId="year-label"
+                                            label="Year"
+                                            value={year}
+                                            onChange={(event) =>
+                                                setYear(
+                                                    event.target.value
+                                                )
+                                            }
+                                            sx={{
+                                                minHeight: 56,
+                                            }}
+                                        >
+                                            <MenuItem value={1}>
+                                                1st Year
+                                            </MenuItem>
+
+                                            <MenuItem value={2}>
+                                                2nd Year
+                                            </MenuItem>
+
+                                            <MenuItem value={3}>
+                                                3rd Year
+                                            </MenuItem>
+
+                                            <MenuItem value={4}>
+                                                4th Year
+                                            </MenuItem>
+                                        </Select>
+                                    </FormControl>
+
+                                    {/* ADMIN SETUP KEY */}
+
+                                    {mode === "admin" && (
+                                        <TextField
+                                            fullWidth
+                                            label="Admin setup key"
+                                            type="password"
+                                            value={setupKey}
+                                            onChange={(event) =>
+                                                setSetupKey(
+                                                    event.target
+                                                        .value
+                                                )
+                                            }
+                                            margin="normal"
+                                            helperText="Enter the setup key configured in the backend."
+                                            slotProps={{
+                                                input: {
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <AdminPanelSettings />
+                                                        </InputAdornment>
+                                                    ),
+                                                },
+                                            }}
+                                            sx={{
+                                                "& .MuiInputBase-root":
+                                                    {
+                                                        minHeight: 56,
+                                                    },
+                                            }}
+                                        />
+                                    )}
+
+                                    {/* PASSWORD */}
+
+                                    <TextField
+                                        fullWidth
+                                        label="Password"
+                                        type="password"
+                                        value={password}
+                                        onChange={(event) =>
+                                            setPassword(
+                                                event.target.value
+                                            )
+                                        }
+                                        margin="normal"
+                                        autoComplete="new-password"
+                                        slotProps={{
+                                            input: {
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <Lock />
+                                                    </InputAdornment>
+                                                ),
+                                            },
+                                        }}
+                                        sx={{
+                                            "& .MuiInputBase-root":
+                                                {
+                                                    minHeight: 56,
+                                                },
+                                        }}
+                                    />
+
+                                    {/* PASSWORD RULES */}
+
+                                    <Box
+                                        sx={{
+                                            mt: 1,
+                                            mb: 1,
+                                            px: 1,
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            color={
+                                                passwordChecks.length
+                                                    ? "success.main"
+                                                    : "text.secondary"
+                                            }
+                                        >
+                                            {passwordChecks.length
+                                                ? "✓"
+                                                : "•"}{" "}
+                                            At least 8 characters
+                                        </Typography>
+
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            color={
+                                                passwordChecks.uppercase
+                                                    ? "success.main"
+                                                    : "text.secondary"
+                                            }
+                                        >
+                                            {passwordChecks.uppercase
+                                                ? "✓"
+                                                : "•"}{" "}
+                                            One uppercase letter
+                                        </Typography>
+
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            color={
+                                                passwordChecks.lowercase
+                                                    ? "success.main"
+                                                    : "text.secondary"
+                                            }
+                                        >
+                                            {passwordChecks.lowercase
+                                                ? "✓"
+                                                : "•"}{" "}
+                                            One lowercase letter
+                                        </Typography>
+
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            color={
+                                                passwordChecks.number
+                                                    ? "success.main"
+                                                    : "text.secondary"
+                                            }
+                                        >
+                                            {passwordChecks.number
+                                                ? "✓"
+                                                : "•"}{" "}
+                                            One number
+                                        </Typography>
+
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            color={
+                                                passwordChecks.special
+                                                    ? "success.main"
+                                                    : "text.secondary"
+                                            }
+                                        >
+                                            {passwordChecks.special
+                                                ? "✓"
+                                                : "•"}{" "}
+                                            One special character
+                                        </Typography>
+                                    </Box>
+
+                                    {/* CONFIRM PASSWORD */}
+
+                                    <TextField
+                                        fullWidth
+                                        label="Confirm password"
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(event) =>
+                                            setConfirmPassword(
+                                                event.target.value
+                                            )
+                                        }
+                                        margin="normal"
+                                        autoComplete="new-password"
+                                        sx={{
+                                            "& .MuiInputBase-root":
+                                                {
+                                                    minHeight: 56,
+                                                },
+                                        }}
+                                    />
+
+                                    {/* SUBMIT */}
+
+                                    <Button
+                                        type="submit"
+                                        fullWidth
+                                        variant="contained"
+                                        size="large"
+                                        disabled={loading}
+                                        sx={{
+                                            mt: 2.5,
+                                            minHeight: 54,
+                                            borderRadius: 2.5,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        {loading
+                                            ? "Creating account..."
+                                            : mode === "admin"
+                                            ? "Create First Admin"
+                                            : "Create Volunteer Account"}
+                                    </Button>
+                                </Box>
+                            )}
+
+                        {/* LOGIN LINK */}
+
+                        <Button
+                            fullWidth
+                            variant="text"
+                            onClick={() =>
+                                navigate("/login")
+                            }
+                            sx={{
+                                mt: 1,
+                                minHeight: 48,
+                                fontWeight: 600,
+                            }}
+                        >
+                            Already have an account? Sign in
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                {/* BRANDING */}
+
+                <Typography
                     variant="caption"
-                    display="block"
-                    color={
-                        passwordChecks.uppercase
-                        ? "success.main"
-                        : "text.secondary"
-                    }
-                    >
-                    {passwordChecks.uppercase
-                        ? "✓"
-                        : "•"}{" "}
-                    One uppercase letter
-                    </Typography>
-
-                    <Typography
-                    variant="caption"
-                    display="block"
-                    color={
-                        passwordChecks.lowercase
-                        ? "success.main"
-                        : "text.secondary"
-                    }
-                    >
-                    {passwordChecks.lowercase
-                        ? "✓"
-                        : "•"}{" "}
-                    One lowercase letter
-                    </Typography>
-
-                    <Typography
-                    variant="caption"
-                    display="block"
-                    color={
-                        passwordChecks.number
-                        ? "success.main"
-                        : "text.secondary"
-                    }
-                    >
-                    {passwordChecks.number
-                        ? "✓"
-                        : "•"}{" "}
-                    One number
-                    </Typography>
-
-                    <Typography
-                    variant="caption"
-                    display="block"
-                    color={
-                        passwordChecks.special
-                        ? "success.main"
-                        : "text.secondary"
-                    }
-                    >
-                    {passwordChecks.special
-                        ? "✓"
-                        : "•"}{" "}
-                    One special character
-                    </Typography>
-                </Box>
-
-                {/* CONFIRM PASSWORD */}
-
-                <TextField
-                    fullWidth
-                    label="Confirm password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) =>
-                    setConfirmPassword(
-                        event.target.value
-                    )
-                    }
-                    margin="normal"
-                    autoComplete="new-password"
+                    color="text.secondary"
                     sx={{
-                    "& .MuiInputBase-root": {
-                        minHeight: 56,
-                    },
-                    }}
-                />
-
-                {/* SUBMIT */}
-
-                <Button
-                    type="submit"
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    disabled={loading}
-                    sx={{
-                    mt: 2.5,
-                    minHeight: 54,
-                    borderRadius: 2.5,
-                    fontWeight: 700,
+                        display: "block",
+                        textAlign: "center",
+                        mt: 2,
+                        px: 2,
                     }}
                 >
-                    {loading
-                    ? "Creating account..."
-                    : mode === "admin"
-                        ? "Create First Admin"
-                        : "Create Volunteer Account"}
-                </Button>
-                </Box>
-            )}
-
-            {/* LOGIN LINK */}
-
-            <Button
-            fullWidth
-            variant="text"
-            onClick={() => navigate("/login")}
-            sx={{
-                mt: 1,
-                minHeight: 48,
-                fontWeight: 600,
-            }}
-            >
-            Already have an account? Sign in
-            </Button>
-        </CardContent>
-        </Card>
-
-        {/* BRANDING */}
-
-        <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{
-            display: "block",
-            textAlign: "center",
-            mt: 2,
-            px: 2,
-        }}
-        >
-        NSS Management & Community Engagement System
-        made with ❤️ by the Code craft club of S.D. College, Ambala cantt 
-        (this project is currently managed by Keshav/Kaidrigon)
-        </Typography>
-    </Container>
-    </Box>
-
-
+                    NSS Management & Community Engagement
+                    System made with ❤️ by the Code craft club
+                    of S.D. College, Ambala Cantt (this project is
+                    currently managed by Keshav/Kaidrigon)
+                </Typography>
+            </Container>
+        </Box>
     );
-    }
+}
 
-    export default Register;
+export default Register;
