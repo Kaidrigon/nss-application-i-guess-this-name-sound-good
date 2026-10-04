@@ -6,24 +6,41 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 
 
+# =========================================================
+# USER ROLES
+# =========================================================
+
 class UserRole(str, Enum):
     VOLUNTEER = "volunteer"
     COORDINATOR = "coordinator"
     ADMIN = "admin"
 
 
+# =========================================================
+# CHANGE ROLE
+# =========================================================
+
 class ChangeRoleRequest(BaseModel):
     role: UserRole
 
 
-# ---------------------------------------------------------
+# =========================================================
 # REGISTER REQUEST
-# ---------------------------------------------------------
+# =========================================================
 
 class RegisterRequest(BaseModel):
-    name: str
 
-    login_id: str
+    name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+    )
+
+    login_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+    )
 
     class_name: str = Field(
         ...,
@@ -39,19 +56,26 @@ class RegisterRequest(BaseModel):
 
     password: str
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Name is required")
+
+        return value
+
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
+
         value = value.strip()
 
         if not value:
             raise ValueError(
                 "Roll number or email is required"
-            )
-
-        if len(value) > 100:
-            raise ValueError(
-                "Roll number or email must be 100 characters or less"
             )
 
         return value
@@ -59,18 +83,18 @@ class RegisterRequest(BaseModel):
     @field_validator("class_name")
     @classmethod
     def validate_class_name(cls, value: str) -> str:
+
         value = value.strip()
 
         if not value:
-            raise ValueError(
-                "Class is required"
-            )
+            raise ValueError("Class is required")
 
         return value
 
     @field_validator("password")
     @classmethod
     def validate_password(cls, password: str) -> str:
+
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"
@@ -99,17 +123,20 @@ class RegisterRequest(BaseModel):
         return password
 
 
-# ---------------------------------------------------------
+# =========================================================
 # LOGIN REQUEST
-# ---------------------------------------------------------
+# =========================================================
 
 class LoginRequest(BaseModel):
+
     login_id: str
+
     password: str
 
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
+
         value = value.strip()
 
         if not value:
@@ -120,41 +147,54 @@ class LoginRequest(BaseModel):
         return value
 
 
-# ---------------------------------------------------------
+# =========================================================
 # TOKEN RESPONSE
-# ---------------------------------------------------------
+# =========================================================
 
 class TokenResponse(BaseModel):
+
     access_token: str
+
     token_type: str
 
 
-# ---------------------------------------------------------
+# =========================================================
 # USER RESPONSE
-# ---------------------------------------------------------
+# =========================================================
 
 class UserResponse(BaseModel):
+
     id: str
+
     name: str
+
     roll_number: str | None = None
+
     email: str | None = None
+
     class_name: str | None = None
+
     year: int | None = None
+
     role: UserRole
+
     service_hours: float
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CHANGE PASSWORD
-# ---------------------------------------------------------
+# =========================================================
 
 class ChangePasswordRequest(BaseModel):
+
     current_password: str
+
     new_password: str
 
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, password: str) -> str:
+
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"
@@ -183,17 +223,20 @@ class ChangePasswordRequest(BaseModel):
         return password
 
 
-# ---------------------------------------------------------
+# =========================================================
 # RESET PASSWORD
-# ---------------------------------------------------------
+# =========================================================
 
 class ResetPasswordRequest(BaseModel):
+
     login_id: str
+
     new_password: str
 
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
+
         value = value.strip()
 
         if not value:
@@ -206,6 +249,7 @@ class ResetPasswordRequest(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, password: str) -> str:
+
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"
@@ -234,30 +278,46 @@ class ResetPasswordRequest(BaseModel):
         return password
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CREATE COORDINATOR
-# ---------------------------------------------------------
+# =========================================================
 
 class CreateCoordinatorRequest(BaseModel):
-    name: str
 
-    login_id: str
+    name: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+    )
+
+    login_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+    )
 
     password: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Name is required")
+
+        return value
 
     @field_validator("login_id")
     @classmethod
     def validate_login_id(cls, value: str) -> str:
+
         value = value.strip()
 
         if not value:
             raise ValueError(
                 "Roll number or email is required"
-            )
-
-        if len(value) > 100:
-            raise ValueError(
-                "Roll number or email must be 100 characters or less"
             )
 
         return value
@@ -265,6 +325,7 @@ class CreateCoordinatorRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, password: str) -> str:
+
         if len(password) < 8:
             raise ValueError(
                 "Password must be at least 8 characters long"

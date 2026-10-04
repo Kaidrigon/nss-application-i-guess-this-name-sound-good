@@ -35,11 +35,12 @@ router = APIRouter(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # HELPER: CHECK WHETHER VALUE IS AN EMAIL
-# ---------------------------------------------------------
+# =========================================================
 
 def is_email(value: str) -> bool:
+
     return bool(
         re.match(
             r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
@@ -48,11 +49,12 @@ def is_email(value: str) -> bool:
     )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # HELPER: FIND USER BY ROLL NUMBER OR EMAIL
-# ---------------------------------------------------------
+# =========================================================
 
 async def find_user_by_login_id(login_id: str):
+
     return await users_collection.find_one(
         {
             "$or": [
@@ -63,9 +65,9 @@ async def find_user_by_login_id(login_id: str):
     )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # REGISTER VOLUNTEER
-# ---------------------------------------------------------
+# =========================================================
 
 @router.post(
     "/register",
@@ -80,6 +82,7 @@ async def register(user: RegisterRequest):
     # -----------------------------------------------------
 
     if is_email(login_id):
+
         email = login_id.lower()
         roll_number = None
 
@@ -94,6 +97,7 @@ async def register(user: RegisterRequest):
             )
 
     else:
+
         roll_number = login_id
         email = None
 
@@ -113,19 +117,27 @@ async def register(user: RegisterRequest):
 
     new_user = {
         "name": user.name.strip(),
+
         "roll_number": roll_number,
+
         "email": email,
 
-        # NEW: academic information
         "class_name": user.class_name.strip(),
+
         "year": user.year,
 
-        "password_hash": hash_password(user.password),
+        "password_hash": hash_password(
+            user.password
+        ),
+
         "role": "volunteer",
+
         "service_hours": 0,
     }
 
-    result = await users_collection.insert_one(new_user)
+    result = await users_collection.insert_one(
+        new_user
+    )
 
     return {
         "message": "User registered successfully",
@@ -133,9 +145,9 @@ async def register(user: RegisterRequest):
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # REGISTER FIRST ADMIN
-# ---------------------------------------------------------
+# =========================================================
 
 @router.post(
     "/register-admin",
@@ -143,7 +155,16 @@ async def register(user: RegisterRequest):
 )
 async def register_admin(
     user: RegisterRequest,
-    setup_key: str = Header(...),
+
+    # IMPORTANT:
+    # Frontend sends "setup-key".
+    #
+    # FastAPI automatically converts setup_key
+    # to the HTTP header "setup-key".
+    #
+    setup_key: str = Header(
+        ...
+    ),
 ):
 
     # -----------------------------------------------------
@@ -151,6 +172,7 @@ async def register_admin(
     # -----------------------------------------------------
 
     if setup_key != ADMIN_SETUP_KEY:
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin setup key",
@@ -165,18 +187,20 @@ async def register_admin(
     )
 
     if existing_admin:
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin setup has already been completed",
         )
 
+    # -----------------------------------------------------
+    # Determine login ID
+    # -----------------------------------------------------
+
     login_id = user.login_id.strip()
 
-    # -----------------------------------------------------
-    # Check whether email or roll number already exists
-    # -----------------------------------------------------
-
     if is_email(login_id):
+
         email = login_id.lower()
         roll_number = None
 
@@ -185,12 +209,14 @@ async def register_admin(
         )
 
         if existing_user:
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
             )
 
     else:
+
         roll_number = login_id
         email = None
 
@@ -199,6 +225,7 @@ async def register_admin(
         )
 
         if existing_user:
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Roll number already registered",
@@ -206,25 +233,31 @@ async def register_admin(
 
     # -----------------------------------------------------
     # Create first admin
-    #
-    # class_name and year are included because
-    # RegisterRequest currently requires them.
     # -----------------------------------------------------
 
     new_admin = {
         "name": user.name.strip(),
+
         "roll_number": roll_number,
+
         "email": email,
 
         "class_name": user.class_name.strip(),
+
         "year": user.year,
 
-        "password_hash": hash_password(user.password),
+        "password_hash": hash_password(
+            user.password
+        ),
+
         "role": "admin",
+
         "service_hours": 0,
     }
 
-    result = await users_collection.insert_one(new_admin)
+    result = await users_collection.insert_one(
+        new_admin
+    )
 
     return {
         "message": "Admin registered successfully",
@@ -232,9 +265,9 @@ async def register_admin(
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # LOGIN
-# ---------------------------------------------------------
+# =========================================================
 
 @router.post(
     "/login",
@@ -247,9 +280,12 @@ async def login(user: LoginRequest):
     if is_email(login_id):
         login_id = login_id.lower()
 
-    existing_user = await find_user_by_login_id(login_id)
+    existing_user = await find_user_by_login_id(
+        login_id
+    )
 
     if not existing_user:
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -261,6 +297,7 @@ async def login(user: LoginRequest):
     )
 
     if not password_is_valid:
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -277,25 +314,38 @@ async def login(user: LoginRequest):
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CURRENT USER
-# ---------------------------------------------------------
+# =========================================================
 
 @router.get("/me")
 async def get_me(
     current_user=Depends(get_current_user),
 ):
+
     return {
         "id": str(current_user["_id"]),
-        "name": current_user["name"],
-        "roll_number": current_user.get("roll_number"),
-        "email": current_user.get("email"),
 
-        # NEW: academic information
-        "class_name": current_user.get("class_name"),
-        "year": current_user.get("year"),
+        "name": current_user["name"],
+
+        "roll_number": current_user.get(
+            "roll_number"
+        ),
+
+        "email": current_user.get(
+            "email"
+        ),
+
+        "class_name": current_user.get(
+            "class_name"
+        ),
+
+        "year": current_user.get(
+            "year"
+        ),
 
         "role": current_user["role"],
+
         "service_hours": current_user.get(
             "service_hours",
             0,
@@ -303,8 +353,13 @@ async def get_me(
     }
 
 
+# =========================================================
+# GET ADMINS
+# =========================================================
+
 @router.get("/admins")
 async def get_admin_names():
+
     admins = []
 
     cursor = users_collection.find(
@@ -316,29 +371,37 @@ async def get_admin_names():
     )
 
     async for admin in cursor:
-        admins.append({
-            "name": admin.get("name", "Administrator")
-        })
+
+        admins.append(
+            {
+                "name": admin.get(
+                    "name",
+                    "Administrator",
+                )
+            }
+        )
 
     return admins
 
-# ---------------------------------------------------------
+
+# =========================================================
 # ADMIN TEST
-# ---------------------------------------------------------
+# =========================================================
 
 @router.get("/admin-test")
 async def admin_test(
     current_user=Depends(require_admin),
 ):
+
     return {
         "message": "You have admin access",
         "admin": current_user["name"],
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CHANGE OWN PASSWORD
-# ---------------------------------------------------------
+# =========================================================
 
 @router.post("/change-password")
 async def change_password(
@@ -346,43 +409,29 @@ async def change_password(
     current_user=Depends(get_current_user),
 ):
 
-    # -----------------------------------------------------
-    # Verify current password
-    # -----------------------------------------------------
-
     if not verify_password(
         data.current_password,
         current_user["password_hash"],
     ):
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect",
         )
 
-    # -----------------------------------------------------
-    # Prevent using the same password
-    # -----------------------------------------------------
-
     if verify_password(
         data.new_password,
         current_user["password_hash"],
     ):
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password must be different",
         )
 
-    # -----------------------------------------------------
-    # Hash new password
-    # -----------------------------------------------------
-
     new_password_hash = hash_password(
         data.new_password
     )
-
-    # -----------------------------------------------------
-    # Update MongoDB
-    # -----------------------------------------------------
 
     await users_collection.update_one(
         {"_id": current_user["_id"]},
@@ -398,9 +447,9 @@ async def change_password(
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # RESET USER PASSWORD
-# ---------------------------------------------------------
+# =========================================================
 
 @router.post("/reset-password")
 async def reset_password(
@@ -413,9 +462,12 @@ async def reset_password(
     if is_email(login_id):
         login_id = login_id.lower()
 
-    user = await find_user_by_login_id(login_id)
+    user = await find_user_by_login_id(
+        login_id
+    )
 
     if not user:
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
@@ -429,9 +481,13 @@ async def reset_password(
         current_user["role"] == "coordinator"
         and user["role"] != "volunteer"
     ):
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Coordinators can only reset volunteer passwords",
+            detail=(
+                "Coordinators can only reset "
+                "volunteer passwords"
+            ),
         )
 
     new_password_hash = hash_password(
@@ -452,9 +508,9 @@ async def reset_password(
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # GET ALL USERS
-# ---------------------------------------------------------
+# =========================================================
 
 @router.get("/users")
 async def get_users(
@@ -471,18 +527,31 @@ async def get_users(
     )
 
     async for user in cursor:
+
         users.append(
             {
                 "id": str(user["_id"]),
-                "name": user["name"],
-                "roll_number": user.get("roll_number"),
-                "email": user.get("email"),
 
-                # NEW: academic information
-                "class_name": user.get("class_name"),
-                "year": user.get("year"),
+                "name": user["name"],
+
+                "roll_number": user.get(
+                    "roll_number"
+                ),
+
+                "email": user.get(
+                    "email"
+                ),
+
+                "class_name": user.get(
+                    "class_name"
+                ),
+
+                "year": user.get(
+                    "year"
+                ),
 
                 "role": user["role"],
+
                 "service_hours": user.get(
                     "service_hours",
                     0,
@@ -493,9 +562,9 @@ async def get_users(
     return users
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CHANGE USER ROLE
-# ---------------------------------------------------------
+# =========================================================
 
 @router.patch("/users/{user_id}/role")
 async def change_user_role(
@@ -509,9 +578,11 @@ async def change_user_role(
     # -----------------------------------------------------
 
     try:
+
         target_user_id = ObjectId(user_id)
 
     except Exception:
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid user ID",
@@ -526,6 +597,7 @@ async def change_user_role(
     )
 
     if not target_user:
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
@@ -539,6 +611,7 @@ async def change_user_role(
         str(current_user["_id"]) == user_id
         and data.role != "admin"
     ):
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot remove your own admin role",
@@ -552,11 +625,13 @@ async def change_user_role(
         target_user["role"] == "admin"
         and data.role != "admin"
     ):
+
         admin_count = await users_collection.count_documents(
             {"role": "admin"}
         )
 
         if admin_count <= 1:
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="At least one admin must remain",
@@ -577,6 +652,8 @@ async def change_user_role(
 
     return {
         "message": "User role updated successfully",
+
         "user_id": user_id,
+
         "new_role": data.role,
     }

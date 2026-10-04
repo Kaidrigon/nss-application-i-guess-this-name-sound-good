@@ -36,68 +36,103 @@ import {
 
 import nssLogo from "../../assets/nss-logo.png";
 
+
 function Register() {
+
     const navigate = useNavigate();
 
     const [mode, setMode] = useState("volunteer");
 
     const [admins, setAdmins] = useState([]);
+
     const [loadingAdmins, setLoadingAdmins] = useState(true);
 
     const [name, setName] = useState("");
+
     const [loginId, setLoginId] = useState("");
+
     const [className, setClassName] = useState("");
+
     const [year, setYear] = useState("");
+
     const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
+
+    const [confirmPassword, setConfirmPassword] =
+        useState("");
 
     const [setupKey, setSetupKey] = useState("");
 
     const [error, setError] = useState("");
+
     const [success, setSuccess] = useState("");
+
     const [loading, setLoading] = useState(false);
 
-    // -------------------------------------------------------
+
+    // =====================================================
     // LOAD ADMINS
-    // -------------------------------------------------------
+    // =====================================================
 
     useEffect(() => {
+
         const loadAdmins = async () => {
+
             try {
+
                 setLoadingAdmins(true);
 
                 const data = await getAdmins();
 
-                setAdmins(Array.isArray(data) ? data : []);
+                setAdmins(
+                    Array.isArray(data)
+                        ? data
+                        : []
+                );
+
             } catch (error) {
+
                 console.error(
                     "Failed to load administrators:",
                     error
                 );
 
                 setAdmins([]);
+
             } finally {
+
                 setLoadingAdmins(false);
             }
         };
 
         loadAdmins();
+
     }, []);
 
-    // -------------------------------------------------------
+
+    // =====================================================
     // PASSWORD VALIDATION
-    // -------------------------------------------------------
+    // =====================================================
 
     const passwordChecks = useMemo(
         () => ({
-            length: password.length >= 8,
-            uppercase: /[A-Z]/.test(password),
-            lowercase: /[a-z]/.test(password),
-            number: /\d/.test(password),
-            special: /[^A-Za-z0-9]/.test(password),
+            length:
+                password.length >= 8,
+
+            uppercase:
+                /[A-Z]/.test(password),
+
+            lowercase:
+                /[a-z]/.test(password),
+
+            number:
+                /\d/.test(password),
+
+            special:
+                /[^A-Za-z0-9]/.test(password),
         }),
         [password]
     );
+
 
     const passwordIsValid =
         passwordChecks.length &&
@@ -106,76 +141,90 @@ function Register() {
         passwordChecks.number &&
         passwordChecks.special;
 
+
     const passwordsMatch =
         password.length > 0 &&
         password === confirmPassword;
 
-    const adminExists = admins.length > 0;
 
-    // -------------------------------------------------------
+    const adminExists =
+        admins.length > 0;
+
+
+    // =====================================================
     // CHANGE MODE
-    // -------------------------------------------------------
+    // =====================================================
 
     const handleModeChange = (event) => {
-        setMode(event.target.value);
+
+        setMode(
+            event.target.value
+        );
+
         setError("");
+
         setSuccess("");
     };
 
-    // -------------------------------------------------------
-    // SAFE ERROR MESSAGE
-    // -------------------------------------------------------
 
-    const getErrorMessage = (error) => {
-        const detail = error?.response?.data?.detail;
+    // =====================================================
+    // FORMAT BACKEND ERRORS
+    // =====================================================
 
+    const getBackendErrorMessage = (error) => {
+
+        const detail =
+            error.response?.data?.detail;
+
+        // Normal FastAPI string error
         if (typeof detail === "string") {
             return detail;
         }
 
+        // FastAPI validation error array
         if (Array.isArray(detail)) {
+
             return detail
                 .map((item) => {
-                    if (typeof item === "string") {
-                        return item;
-                    }
 
-                    if (item?.msg) {
-                        return item.msg;
-                    }
+                    const location =
+                        Array.isArray(item.loc)
+                            ? item.loc.join(".")
+                            : "";
 
-                    return "Invalid input.";
+                    return location
+                        ? `${location}: ${item.msg}`
+                        : item.msg;
+
                 })
-                .join(", ");
+                .join("\n");
         }
 
-        if (detail && typeof detail === "object") {
-            if (detail.msg) {
-                return detail.msg;
-            }
-
-            return "The submitted information is invalid.";
-        }
-
-        if (error?.message) {
-            return error.message;
-        }
-
-        return "Registration failed. Please try again.";
+        return (
+            "Registration failed. Please try again."
+        );
     };
 
-    // -------------------------------------------------------
+
+    // =====================================================
     // SUBMIT REGISTRATION
-    // -------------------------------------------------------
+    // =====================================================
 
     const handleSubmit = async (event) => {
+
         event.preventDefault();
 
         setError("");
+
         setSuccess("");
 
-        // Coordinator accounts cannot be created publicly
+
+        // -------------------------------------------------
+        // COORDINATOR
+        // -------------------------------------------------
+
         if (mode === "coordinator") {
+
             setError(
                 "Coordinator accounts cannot be created through registration. Please register as a volunteer and contact an administrator."
             );
@@ -183,8 +232,16 @@ function Register() {
             return;
         }
 
-        // First admin can only be created when no admin exists
-        if (mode === "admin" && adminExists) {
+
+        // -------------------------------------------------
+        // ADMIN ALREADY EXISTS
+        // -------------------------------------------------
+
+        if (
+            mode === "admin" &&
+            adminExists
+        ) {
+
             setError(
                 "First-admin registration is no longer available. Please register as a volunteer and contact an administrator."
             );
@@ -192,64 +249,141 @@ function Register() {
             return;
         }
 
-        // Name validation
+
+        // -------------------------------------------------
+        // NAME
+        // -------------------------------------------------
+
         if (!name.trim()) {
-            setError("Please enter your name.");
+
+            setError(
+                "Please enter your name."
+            );
+
             return;
         }
 
-        // Login ID validation
+
+        // -------------------------------------------------
+        // LOGIN ID
+        // -------------------------------------------------
+
         if (!loginId.trim()) {
+
             setError(
                 "Please enter your roll number or email."
             );
+
             return;
         }
 
-        // Class validation
+
+        // -------------------------------------------------
+        // CLASS
+        // -------------------------------------------------
+
         if (!className.trim()) {
-            setError("Please enter your class.");
+
+            setError(
+                "Please enter your class."
+            );
+
             return;
         }
 
-        // Year validation
+
+        // -------------------------------------------------
+        // YEAR
+        // -------------------------------------------------
+
         if (!year) {
-            setError("Please select your year.");
+
+            setError(
+                "Please select your year."
+            );
+
             return;
         }
 
-        // Password validation
+
+        // -------------------------------------------------
+        // PASSWORD
+        // -------------------------------------------------
+
         if (!passwordIsValid) {
+
             setError(
                 "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
             );
+
             return;
         }
 
-        // Confirm password
+
+        // -------------------------------------------------
+        // CONFIRM PASSWORD
+        // -------------------------------------------------
+
         if (!passwordsMatch) {
-            setError("Passwords do not match.");
+
+            setError(
+                "Passwords do not match."
+            );
+
             return;
         }
 
-        // Admin setup key
-        if (mode === "admin" && !setupKey.trim()) {
-            setError("Please enter the admin setup key.");
+
+        // -------------------------------------------------
+        // ADMIN SETUP KEY
+        // -------------------------------------------------
+
+        if (
+            mode === "admin" &&
+            !setupKey.trim()
+        ) {
+
+            setError(
+                "Please enter the admin setup key."
+            );
+
             return;
         }
+
+
+        // =================================================
+        // SEND REQUEST
+        // =================================================
 
         try {
+
             setLoading(true);
 
+
             const registrationData = {
-                name: name.trim(),
-                login_id: loginId.trim(),
-                class_name: className.trim(),
-                year: Number(year),
+
+                name:
+                    name.trim(),
+
+                login_id:
+                    loginId.trim(),
+
+                class_name:
+                    className.trim(),
+
+                year:
+                    Number(year),
+
                 password,
             };
 
+
+            // ------------------------------------------------
+            // FIRST ADMIN
+            // ------------------------------------------------
+
             if (mode === "admin") {
+
                 await registerFirstAdmin(
                     registrationData,
                     setupKey.trim()
@@ -258,26 +392,52 @@ function Register() {
                 setSuccess(
                     "Admin account created successfully. You can now sign in."
                 );
-            } else {
-                await registerVolunteer(registrationData);
+
+            }
+
+            // ------------------------------------------------
+            // VOLUNTEER
+            // ------------------------------------------------
+
+            else {
+
+                await registerVolunteer(
+                    registrationData
+                );
 
                 setSuccess(
                     "Volunteer account created successfully. You can now sign in."
                 );
             }
 
-            // Clear form
+
+            // ------------------------------------------------
+            // CLEAR FORM
+            // ------------------------------------------------
+
             setName("");
+
             setLoginId("");
+
             setClassName("");
+
             setYear("");
+
             setPassword("");
+
             setConfirmPassword("");
+
             setSetupKey("");
 
-            // Refresh admin list after first admin creation
+
+            // ------------------------------------------------
+            // REFRESH ADMINS
+            // ------------------------------------------------
+
             if (mode === "admin") {
-                const updatedAdmins = await getAdmins();
+
+                const updatedAdmins =
+                    await getAdmins();
 
                 setAdmins(
                     Array.isArray(updatedAdmins)
@@ -285,24 +445,33 @@ function Register() {
                         : []
                 );
             }
+
         } catch (error) {
+
             console.error(
                 "Registration failed:",
                 error
             );
 
-            setError(getErrorMessage(error));
+            setError(
+                getBackendErrorMessage(error)
+            );
+
         } finally {
+
             setLoading(false);
         }
     };
 
-    // -------------------------------------------------------
+
+    // =====================================================
     // ADMIN INFORMATION
-    // -------------------------------------------------------
+    // =====================================================
 
     const AdminInformation = () => {
+
         if (loadingAdmins) {
+
             return (
                 <Alert
                     severity="info"
@@ -316,36 +485,45 @@ function Register() {
             );
         }
 
+
         if (!adminExists) {
             return null;
         }
 
+
         return (
             <Alert
                 severity="info"
-                icon={<AdminPanelSettings />}
+                icon={
+                    <AdminPanelSettings />
+                }
                 sx={{
                     mb: 3,
                     alignItems: "flex-start",
                     borderRadius: 2,
                 }}
             >
+
                 <Typography
                     variant="body2"
                     fontWeight={600}
-                    sx={{ mb: 0.5 }}
+                    sx={{
+                        mb: 0.5,
+                    }}
                 >
                     First-admin registration is unavailable
                 </Typography>
 
+
                 <Typography variant="body2">
-                    This NSS system already has an
-                    administrator. Please register as a
-                    volunteer and contact an administrator
-                    to have your role changed.
+                    This NSS system already has an administrator.
+                    Please register as a volunteer and contact an
+                    administrator to have your role changed.
                 </Typography>
 
+
                 <Box sx={{ mt: 1 }}>
+
                     <Typography
                         variant="body2"
                         fontWeight={600}
@@ -354,51 +532,66 @@ function Register() {
                         {admins.length > 1 ? "s" : ""}:
                     </Typography>
 
-                    {admins.map((admin, index) => (
-                        <Typography
-                            key={`${admin.name}-${index}`}
-                            variant="body2"
-                        >
-                            • {admin.name}
-                        </Typography>
-                    ))}
+
+                    {admins.map(
+                        (admin, index) => (
+                            <Typography
+                                key={`${admin.name}-${index}`}
+                                variant="body2"
+                            >
+                                • {admin.name}
+                            </Typography>
+                        )
+                    )}
+
                 </Box>
+
             </Alert>
         );
     };
 
-    // -------------------------------------------------------
+
+    // =====================================================
     // COORDINATOR INFORMATION
-    // -------------------------------------------------------
+    // =====================================================
 
     const CoordinatorInformation = () => {
+
         return (
             <Alert
                 severity="info"
-                icon={<AdminPanelSettings />}
+                icon={
+                    <AdminPanelSettings />
+                }
                 sx={{
                     mb: 3,
                     alignItems: "flex-start",
                     borderRadius: 2,
                 }}
             >
+
                 <Typography
                     variant="body2"
                     fontWeight={600}
-                    sx={{ mb: 0.5 }}
+                    sx={{
+                        mb: 0.5,
+                    }}
                 >
-                    Coordinator accounts cannot be
-                    self-created
+                    Coordinator accounts cannot be self-created
                 </Typography>
+
 
                 <Typography variant="body2">
-                    Please register as a volunteer and
-                    contact an administrator to have your
-                    role changed to coordinator.
+                    Please register as a volunteer and contact an
+                    administrator to have your role changed to
+                    coordinator.
                 </Typography>
 
+
                 {admins.length > 0 && (
+
                     <Box sx={{ mt: 1 }}>
+
                         <Typography
                             variant="body2"
                             fontWeight={600}
@@ -407,25 +600,32 @@ function Register() {
                             {admins.length > 1 ? "s" : ""}:
                         </Typography>
 
-                        {admins.map((admin, index) => (
-                            <Typography
-                                key={`${admin.name}-${index}`}
-                                variant="body2"
-                            >
-                                • {admin.name}
-                            </Typography>
-                        ))}
+
+                        {admins.map(
+                            (admin, index) => (
+                                <Typography
+                                    key={`${admin.name}-${index}`}
+                                    variant="body2"
+                                >
+                                    • {admin.name}
+                                </Typography>
+                            )
+                        )}
+
                     </Box>
                 )}
+
             </Alert>
         );
     };
 
-    // -------------------------------------------------------
+
+    // =====================================================
     // UI
-    // -------------------------------------------------------
+    // =====================================================
 
     return (
+
         <Box
             sx={{
                 minHeight: "100dvh",
@@ -446,6 +646,7 @@ function Register() {
                 boxSizing: "border-box",
             }}
         >
+
             <Container
                 maxWidth="sm"
                 disableGutters
@@ -453,6 +654,7 @@ function Register() {
                     width: "100%",
                 }}
             >
+
                 <Card
                     elevation={0}
                     sx={{
@@ -472,6 +674,7 @@ function Register() {
                         overflow: "hidden",
                     }}
                 >
+
                     <CardContent
                         sx={{
                             p: {
@@ -480,7 +683,8 @@ function Register() {
                             },
                         }}
                     >
-                        {/* LOGO + HEADER */}
+
+                        {/* LOGO */}
 
                         <Box
                             sx={{
@@ -491,6 +695,7 @@ function Register() {
                                 },
                             }}
                         >
+
                             <Box
                                 component="img"
                                 src={nssLogo}
@@ -511,6 +716,7 @@ function Register() {
                                 }}
                             />
 
+
                             <Typography
                                 variant="h4"
                                 component="h1"
@@ -526,6 +732,7 @@ function Register() {
                                 Create your account
                             </Typography>
 
+
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
@@ -535,7 +742,9 @@ function Register() {
                             >
                                 Join the NSS community
                             </Typography>
+
                         </Box>
+
 
                         {/* REGISTRATION MODE */}
 
@@ -545,9 +754,12 @@ function Register() {
                                 mb: 3,
                             }}
                         >
+
                             <RadioGroup
                                 value={mode}
-                                onChange={handleModeChange}
+                                onChange={
+                                    handleModeChange
+                                }
                                 sx={{
                                     display: "grid",
 
@@ -561,6 +773,7 @@ function Register() {
                                     width: "100%",
                                 }}
                             >
+
                                 <FormControlLabel
                                     value="volunteer"
                                     control={<Radio />}
@@ -574,6 +787,7 @@ function Register() {
                                             "1px solid rgba(75, 22, 76, 0.08)",
                                     }}
                                 />
+
 
                                 <FormControlLabel
                                     value="admin"
@@ -589,6 +803,7 @@ function Register() {
                                     }}
                                 />
 
+
                                 <FormControlLabel
                                     value="coordinator"
                                     control={<Radio />}
@@ -602,8 +817,11 @@ function Register() {
                                             "1px solid rgba(75, 22, 76, 0.08)",
                                     }}
                                 />
+
                             </RadioGroup>
+
                         </FormControl>
+
 
                         {/* ADMIN INFORMATION */}
 
@@ -611,20 +829,24 @@ function Register() {
                             <AdminInformation />
                         )}
 
+
                         {/* COORDINATOR INFORMATION */}
 
                         {mode === "coordinator" && (
                             <CoordinatorInformation />
                         )}
 
+
                         {/* ERROR */}
 
                         {error && (
+
                             <Alert
                                 severity="error"
                                 sx={{
                                     mb: 3,
                                     borderRadius: 2,
+                                    whiteSpace: "pre-line",
                                 }}
                                 onClose={() =>
                                     setError("")
@@ -632,11 +854,14 @@ function Register() {
                             >
                                 {error}
                             </Alert>
+
                         )}
+
 
                         {/* SUCCESS */}
 
                         {success && (
+
                             <Alert
                                 severity="success"
                                 sx={{
@@ -648,7 +873,9 @@ function Register() {
                                         color="inherit"
                                         size="small"
                                         onClick={() =>
-                                            navigate("/login")
+                                            navigate(
+                                                "/login"
+                                            )
                                         }
                                     >
                                         Sign in
@@ -657,7 +884,9 @@ function Register() {
                             >
                                 {success}
                             </Alert>
+
                         )}
+
 
                         {/* FORM */}
 
@@ -666,11 +895,15 @@ function Register() {
                                 mode === "admin" &&
                                 adminExists
                             ) && (
+
                                 <Box
                                     component="form"
-                                    onSubmit={handleSubmit}
+                                    onSubmit={
+                                        handleSubmit
+                                    }
                                     noValidate
                                 >
+
                                     {/* NAME */}
 
                                     <TextField
@@ -694,12 +927,12 @@ function Register() {
                                             },
                                         }}
                                         sx={{
-                                            "& .MuiInputBase-root":
-                                                {
-                                                    minHeight: 56,
-                                                },
+                                            "& .MuiInputBase-root": {
+                                                minHeight: 56,
+                                            },
                                         }}
                                     />
+
 
                                     {/* LOGIN ID */}
 
@@ -725,12 +958,12 @@ function Register() {
                                             },
                                         }}
                                         sx={{
-                                            "& .MuiInputBase-root":
-                                                {
-                                                    minHeight: 56,
-                                                },
+                                            "& .MuiInputBase-root": {
+                                                minHeight: 56,
+                                            },
                                         }}
                                     />
+
 
                                     {/* CLASS */}
 
@@ -746,12 +979,12 @@ function Register() {
                                         margin="normal"
                                         placeholder="e.g. BCA 2nd Year"
                                         sx={{
-                                            "& .MuiInputBase-root":
-                                                {
-                                                    minHeight: 56,
-                                                },
+                                            "& .MuiInputBase-root": {
+                                                minHeight: 56,
+                                            },
                                         }}
                                     />
+
 
                                     {/* YEAR */}
 
@@ -759,6 +992,7 @@ function Register() {
                                         fullWidth
                                         margin="normal"
                                     >
+
                                         <InputLabel id="year-label">
                                             Year
                                         </InputLabel>
@@ -776,6 +1010,7 @@ function Register() {
                                                 minHeight: 56,
                                             }}
                                         >
+
                                             <MenuItem value={1}>
                                                 1st Year
                                             </MenuItem>
@@ -791,12 +1026,16 @@ function Register() {
                                             <MenuItem value={4}>
                                                 4th Year
                                             </MenuItem>
+
                                         </Select>
+
                                     </FormControl>
+
 
                                     {/* ADMIN SETUP KEY */}
 
                                     {mode === "admin" && (
+
                                         <TextField
                                             fullWidth
                                             label="Admin setup key"
@@ -804,8 +1043,7 @@ function Register() {
                                             value={setupKey}
                                             onChange={(event) =>
                                                 setSetupKey(
-                                                    event.target
-                                                        .value
+                                                    event.target.value
                                                 )
                                             }
                                             margin="normal"
@@ -820,13 +1058,14 @@ function Register() {
                                                 },
                                             }}
                                             sx={{
-                                                "& .MuiInputBase-root":
-                                                    {
-                                                        minHeight: 56,
-                                                    },
+                                                "& .MuiInputBase-root": {
+                                                    minHeight: 56,
+                                                },
                                             }}
                                         />
+
                                     )}
+
 
                                     {/* PASSWORD */}
 
@@ -852,12 +1091,12 @@ function Register() {
                                             },
                                         }}
                                         sx={{
-                                            "& .MuiInputBase-root":
-                                                {
-                                                    minHeight: 56,
-                                                },
+                                            "& .MuiInputBase-root": {
+                                                minHeight: 56,
+                                            },
                                         }}
                                     />
+
 
                                     {/* PASSWORD RULES */}
 
@@ -868,6 +1107,7 @@ function Register() {
                                             px: 1,
                                         }}
                                     >
+
                                         <Typography
                                             variant="caption"
                                             display="block"
@@ -882,6 +1122,7 @@ function Register() {
                                                 : "•"}{" "}
                                             At least 8 characters
                                         </Typography>
+
 
                                         <Typography
                                             variant="caption"
@@ -898,6 +1139,7 @@ function Register() {
                                             One uppercase letter
                                         </Typography>
 
+
                                         <Typography
                                             variant="caption"
                                             display="block"
@@ -912,6 +1154,7 @@ function Register() {
                                                 : "•"}{" "}
                                             One lowercase letter
                                         </Typography>
+
 
                                         <Typography
                                             variant="caption"
@@ -928,6 +1171,7 @@ function Register() {
                                             One number
                                         </Typography>
 
+
                                         <Typography
                                             variant="caption"
                                             display="block"
@@ -942,7 +1186,9 @@ function Register() {
                                                 : "•"}{" "}
                                             One special character
                                         </Typography>
+
                                     </Box>
+
 
                                     {/* CONFIRM PASSWORD */}
 
@@ -959,12 +1205,12 @@ function Register() {
                                         margin="normal"
                                         autoComplete="new-password"
                                         sx={{
-                                            "& .MuiInputBase-root":
-                                                {
-                                                    minHeight: 56,
-                                                },
+                                            "& .MuiInputBase-root": {
+                                                minHeight: 56,
+                                            },
                                         }}
                                     />
+
 
                                     {/* SUBMIT */}
 
@@ -984,11 +1230,13 @@ function Register() {
                                         {loading
                                             ? "Creating account..."
                                             : mode === "admin"
-                                            ? "Create First Admin"
-                                            : "Create Volunteer Account"}
+                                                ? "Create First Admin"
+                                                : "Create Volunteer Account"}
                                     </Button>
+
                                 </Box>
                             )}
+
 
                         {/* LOGIN LINK */}
 
@@ -1006,8 +1254,11 @@ function Register() {
                         >
                             Already have an account? Sign in
                         </Button>
+
                     </CardContent>
+
                 </Card>
+
 
                 {/* BRANDING */}
 
@@ -1021,14 +1272,17 @@ function Register() {
                         px: 2,
                     }}
                 >
-                    NSS Management & Community Engagement
-                    System made with ❤️ by the Code craft club
-                    of S.D. College, Ambala Cantt (this project is
-                    currently managed by Keshav/Kaidrigon)
+                    NSS Management & Community Engagement System
+                    made with ❤️ by the Code craft club of S.D. College,
+                    Ambala cantt (this project is currently managed by
+                    Keshav/Kaidrigon)
                 </Typography>
+
             </Container>
+
         </Box>
     );
 }
+
 
 export default Register;
