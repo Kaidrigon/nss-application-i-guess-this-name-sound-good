@@ -13,6 +13,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import Users from "./pages/admin/Users";
 import AdminEvents from "./pages/admin/Events";
 import EventAttendance from "./pages/admin/EventAttendance";
+import Reports from "./pages/admin/Reports";
 
 
 function App() {
@@ -107,6 +108,11 @@ function App() {
                 path="/admin/events/:eventId/attendance"
                 element={<EventAttendance />}
             />
+
+            <Route
+    path="/admin/reports"
+    element={<Reports />}
+/>
 
         </Routes>
     );
