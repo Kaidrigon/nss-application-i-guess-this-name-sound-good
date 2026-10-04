@@ -6,11 +6,16 @@ import Register from "./pages/auth/Register";
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
 import ServiceHours from "./pages/dashboard/ServiceHours";
 import Events from "./pages/dashboard/Events";
+import History from "./pages/volunteer/History";
+
 
 function App() {
   return (
     <Routes>
-      {/* DEFAULT */}
+
+      {/* =====================================================
+          DEFAULT
+      ====================================================== */}
 
       <Route
         path="/"
@@ -22,7 +27,10 @@ function App() {
         }
       />
 
-      {/* AUTHENTICATION */}
+
+      {/* =====================================================
+          AUTHENTICATION
+      ====================================================== */}
 
       <Route
         path="/login"
@@ -34,26 +42,46 @@ function App() {
         element={<Register />}
       />
 
-      {/* VOLUNTEER DASHBOARD */}
+
+      {/* =====================================================
+          VOLUNTEER DASHBOARD
+      ====================================================== */}
 
       <Route
         path="/dashboard"
         element={<VolunteerDashboard />}
       />
 
-      {/* EVENTS */}
+
+      {/* =====================================================
+          EVENTS
+      ====================================================== */}
 
       <Route
         path="/events"
         element={<Events />}
       />
 
-      {/* SERVICE HOURS */}
+
+      {/* =====================================================
+          SERVICE HOURS
+      ====================================================== */}
 
       <Route
         path="/service-hours"
         element={<ServiceHours />}
       />
+
+
+      {/* =====================================================
+          SERVICE HISTORY
+      ====================================================== */}
+
+      <Route
+        path="/history"
+        element={<History />}
+      />
+
     </Routes>
   );
 }
