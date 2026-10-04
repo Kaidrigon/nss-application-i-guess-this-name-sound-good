@@ -302,6 +302,120 @@ async def get_me(
         ),
     }
 
+# =========================================================
+# UPDATE OWN PROFILE
+# =========================================================
+
+@router.patch("/me")
+async def update_my_profile(
+    data: ProfileUpdateRequest,
+    current_user=Depends(get_current_user),
+):
+    name = data.name.strip()
+    login_id = data.login_id.strip()
+    class_name = data.class_name.strip()
+
+    # -----------------------------------------------------
+    # Basic validation
+    # -----------------------------------------------------
+
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name is required",
+        )
+
+    if not login_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Roll number or email is required",
+        )
+
+    if not class_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Class is required",
+        )
+
+    # -----------------------------------------------------
+    # Determine whether login ID is email or roll number
+    # -----------------------------------------------------
+
+    if is_email(login_id):
+        new_email = login_id.lower()
+        new_roll_number = None
+
+        existing_user = await users_collection.find_one(
+            {
+                "email": new_email,
+                "_id": {"$ne": current_user["_id"]},
+            }
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+
+    else:
+        new_roll_number = login_id
+        new_email = None
+
+        existing_user = await users_collection.find_one(
+            {
+                "roll_number": new_roll_number,
+                "_id": {"$ne": current_user["_id"]},
+            }
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Roll number already registered",
+            )
+
+    # -----------------------------------------------------
+    # Update profile
+    # -----------------------------------------------------
+
+    await users_collection.update_one(
+        {"_id": current_user["_id"]},
+        {
+            "$set": {
+                "name": name,
+                "roll_number": new_roll_number,
+                "email": new_email,
+                "class_name": class_name,
+                "year": data.year,
+            }
+        },
+    )
+
+    # -----------------------------------------------------
+    # Return updated profile
+    # -----------------------------------------------------
+
+    updated_user = await users_collection.find_one(
+        {"_id": current_user["_id"]}
+    )
+
+    return {
+        "message": "Profile updated successfully",
+        "user": {
+            "id": str(updated_user["_id"]),
+            "name": updated_user["name"],
+            "roll_number": updated_user.get("roll_number"),
+            "email": updated_user.get("email"),
+            "class_name": updated_user.get("class_name"),
+            "year": updated_user.get("year"),
+            "role": updated_user["role"],
+            "service_hours": updated_user.get(
+                "service_hours",
+                0,
+            ),
+        },
+    }
 
 # =========================================================
 # UPDATE OWN PROFILE
