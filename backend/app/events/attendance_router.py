@@ -16,6 +16,10 @@ from app.database import (
     service_hour_history_collection,
 )
 
+from app.events.attendance_schemas import (
+    MarkAttendanceRequest,
+)
+
 
 router = APIRouter(
     prefix="/events",
@@ -24,14 +28,13 @@ router = APIRouter(
 
 
 # =========================================================
-# MARK ATTENDANCE
+# MARK / UPDATE ATTENDANCE
 # =========================================================
 
 @router.post("/{event_id}/attendance")
 async def mark_attendance(
     event_id: str,
-    user_id: str,
-    attendance_status: str,
+    data: MarkAttendanceRequest,
     current_user=Depends(require_staff),
 ):
 
@@ -53,7 +56,7 @@ async def mark_attendance(
     # -----------------------------------------------------
 
     try:
-        user_object_id = ObjectId(user_id)
+        user_object_id = ObjectId(data.user_id)
 
     except Exception:
         raise HTTPException(
@@ -61,15 +64,7 @@ async def mark_attendance(
             detail="Invalid user ID",
         )
 
-    # -----------------------------------------------------
-    # Validate attendance status
-    # -----------------------------------------------------
-
-    if attendance_status not in ["attended", "absent"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendance status must be 'attended' or 'absent'",
-        )
+    attendance_status = data.status.value
 
     # -----------------------------------------------------
     # Find event
@@ -86,14 +81,20 @@ async def mark_attendance(
         )
 
     # -----------------------------------------------------
-    # Attendance can only be marked for ongoing
-    # or completed events.
+    # Attendance can be marked while event is ongoing
+    # or after it has been completed.
     # -----------------------------------------------------
 
-    if event["status"] not in ["ongoing", "completed"]:
+    if event.get("status") not in [
+        "ongoing",
+        "completed",
+    ]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendance can only be marked for ongoing or completed events",
+            detail=(
+                "Attendance can only be marked for "
+                "ongoing or completed events"
+            ),
         )
 
     # -----------------------------------------------------
@@ -114,7 +115,7 @@ async def mark_attendance(
     # Only volunteers can have attendance
     # -----------------------------------------------------
 
-    if user["role"] != "volunteer":
+    if user.get("role") != "volunteer":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Attendance can only be marked for volunteers",
@@ -139,7 +140,13 @@ async def mark_attendance(
         )
 
     # -----------------------------------------------------
-    # Find existing attendance record
+    # Event credited hours
+    # -----------------------------------------------------
+
+    credited_hours = event.get("credited_hours", 0)
+
+    # -----------------------------------------------------
+    # Check existing attendance
     # -----------------------------------------------------
 
     existing_attendance = (
@@ -157,23 +164,22 @@ async def mark_attendance(
 
     if existing_attendance:
 
-        old_status = existing_attendance["status"]
+        old_status = existing_attendance.get("status")
 
         # -------------------------------------------------
         # Nothing changed
         # -------------------------------------------------
 
         if old_status == attendance_status:
+
             return {
                 "message": "Attendance is already marked",
                 "status": attendance_status,
-                "service_hours_credited": False,
+                "service_hours_changed": 0,
             }
 
-        credited_hours = event["credited_hours"]
-
         # -------------------------------------------------
-        # attended → absent
+        # ATTENDED → ABSENT
         #
         # Remove previously credited hours.
         # -------------------------------------------------
@@ -192,7 +198,6 @@ async def mark_attendance(
                 },
             )
 
-            # Record the reversal in history
             await service_hour_history_collection.insert_one(
                 {
                     "user_id": user_object_id,
@@ -208,8 +213,10 @@ async def mark_attendance(
                 }
             )
 
+            hours_changed = -credited_hours
+
         # -------------------------------------------------
-        # absent → attended
+        # ABSENT → ATTENDED
         #
         # Add hours.
         # -------------------------------------------------
@@ -228,7 +235,6 @@ async def mark_attendance(
                 },
             )
 
-            # Record the new credit in history
             await service_hour_history_collection.insert_one(
                 {
                     "user_id": user_object_id,
@@ -243,6 +249,11 @@ async def mark_attendance(
                     "recorded_at": datetime.now(timezone.utc),
                 }
             )
+
+            hours_changed = credited_hours
+
+        else:
+            hours_changed = 0
 
         # -------------------------------------------------
         # Update attendance record
@@ -262,14 +273,7 @@ async def mark_attendance(
         return {
             "message": "Attendance updated successfully",
             "status": attendance_status,
-            "service_hours_credited": (
-                attendance_status == "attended"
-            ),
-            "hours_changed": (
-                credited_hours
-                if attendance_status == "attended"
-                else -credited_hours
-            ),
+            "service_hours_changed": hours_changed,
         }
 
     # =====================================================
@@ -294,9 +298,6 @@ async def mark_attendance(
 
     if attendance_status == "attended":
 
-        credited_hours = event["credited_hours"]
-
-        # Add service hours to user
         await users_collection.update_one(
             {"_id": user_object_id},
             {
@@ -306,7 +307,6 @@ async def mark_attendance(
             },
         )
 
-        # Add service-hour history
         await service_hour_history_collection.insert_one(
             {
                 "user_id": user_object_id,
@@ -322,8 +322,7 @@ async def mark_attendance(
         return {
             "message": "Attendance marked successfully",
             "status": "attended",
-            "service_hours_credited": True,
-            "hours_added": credited_hours,
+            "service_hours_changed": credited_hours,
         }
 
     # -----------------------------------------------------
@@ -333,8 +332,7 @@ async def mark_attendance(
     return {
         "message": "Attendance marked successfully",
         "status": "absent",
-        "service_hours_credited": False,
-        "hours_added": 0,
+        "service_hours_changed": 0,
     }
 
 
@@ -375,61 +373,122 @@ async def get_event_attendance(
             detail="Event not found",
         )
 
-    attendance_list = []
+    # -----------------------------------------------------
+    # Get ALL registered volunteers
+    #
+    # This is important:
+    # Volunteers without an attendance record yet
+    # must still appear in the admin attendance screen.
+    # -----------------------------------------------------
 
-    cursor = event_attendance_collection.find(
+    registrations_cursor = event_registrations_collection.find(
         {
             "event_id": event_object_id,
+            "status": "registered",
         }
     )
 
-    async for attendance in cursor:
+    attendance_list = []
+
+    async for registration in registrations_cursor:
+
+        user_id = registration["user_id"]
 
         user = await users_collection.find_one(
             {
-                "_id": attendance["user_id"]
+                "_id": user_id
             }
+        )
+
+        if not user:
+            continue
+
+        attendance = await event_attendance_collection.find_one(
+            {
+                "event_id": event_object_id,
+                "user_id": user_id,
+            }
+        )
+
+        attendance_status = (
+            attendance.get("status")
+            if attendance
+            else None
         )
 
         attendance_list.append(
             {
-                "attendance_id": str(
-                    attendance["_id"]
+                "registration_id": str(
+                    registration["_id"]
                 ),
 
-                "user_id": str(
-                    attendance["user_id"]
-                ),
-
-                "name": (
-                    user["name"]
-                    if user
-                    else "Unknown"
-                ),
-
-                "roll_number": (
-                    user.get("roll_number")
-                    if user
+                "attendance_id": (
+                    str(attendance["_id"])
+                    if attendance
                     else None
                 ),
 
-                "email": (
-                    user.get("email")
-                    if user
-                    else None
+                "user_id": str(user_id),
+
+                "name": user.get(
+                    "name",
+                    "Unknown",
                 ),
 
-                "status": attendance["status"],
+                "roll_number": user.get(
+                    "roll_number"
+                ),
 
-                "marked_at": attendance.get(
-                    "marked_at"
+                "email": user.get(
+                    "email"
+                ),
+
+                "status": attendance_status,
+
+                "marked_at": (
+                    attendance.get("marked_at")
+                    if attendance
+                    else None
                 ),
             }
         )
 
+    # -----------------------------------------------------
+    # Attendance statistics
+    # -----------------------------------------------------
+
+    total_registered = len(attendance_list)
+
+    attended_count = sum(
+        1
+        for item in attendance_list
+        if item["status"] == "attended"
+    )
+
+    absent_count = sum(
+        1
+        for item in attendance_list
+        if item["status"] == "absent"
+    )
+
+    pending_count = sum(
+        1
+        for item in attendance_list
+        if item["status"] is None
+    )
+
     return {
         "event_id": event_id,
         "event_title": event["title"],
+        "event_status": event.get("status"),
+        "credited_hours": event.get(
+            "credited_hours",
+            0,
+        ),
+        "total_registered": total_registered,
+        "attended": attended_count,
+        "absent": absent_count,
+        "pending": pending_count,
         "attendance": attendance_list,
     }
 
@@ -457,6 +516,10 @@ async def get_my_attendance(
             detail="Invalid event ID",
         )
 
+    # -----------------------------------------------------
+    # Find attendance
+    # -----------------------------------------------------
+
     attendance = await event_attendance_collection.find_one(
         {
             "event_id": event_object_id,
@@ -468,6 +531,7 @@ async def get_my_attendance(
         return {
             "marked": False,
             "status": None,
+            "marked_at": None,
         }
 
     return {
