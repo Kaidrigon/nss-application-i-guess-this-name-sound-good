@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
     Alert,
@@ -30,6 +31,7 @@ import {
 
 import {
     AdminPanelSettings,
+    ArrowBack,
     LockReset,
     Person,
     Refresh,
@@ -49,6 +51,8 @@ import api from "../../services/api";
 
 
 function Users() {
+
+    const navigate = useNavigate();
 
     const { user } = useAuth();
 
@@ -371,6 +375,7 @@ function Users() {
                     login_id:
                         selectedUser.email ||
                         selectedUser.roll_number,
+
                     new_password:
                         resetPassword,
                 }
@@ -595,31 +600,64 @@ function Users() {
                 PAGE HEADER
             ================================================== */}
 
-            <Box sx={{ mb: 4 }}>
+            <Box
+                sx={{
+                    mb: 4,
+                    display: "flex",
+                    alignItems: {
+                        xs: "flex-start",
+                        sm: "center",
+                    },
+                    justifyContent: "space-between",
+                    gap: 2,
+                    flexWrap: "wrap",
+                }}
+            >
 
-                <Typography
-                    variant="h4"
-                    component="h1"
-                    fontWeight={700}
+                <Box>
+
+                    <Typography
+                        variant="h4"
+                        component="h1"
+                        fontWeight={700}
+                        sx={{
+                            fontSize: {
+                                xs: "1.75rem",
+                                sm: "2rem",
+                                md: "2.25rem",
+                            },
+                        }}
+                    >
+                        User Management
+                    </Typography>
+
+                    <Typography
+                        variant="body1"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                    >
+                        Manage volunteers, coordinators,
+                        and administrators.
+                    </Typography>
+
+                </Box>
+
+                {/* BACK TO ADMIN DASHBOARD */}
+
+                <Button
+                    variant="outlined"
+                    startIcon={<ArrowBack />}
+                    onClick={() => navigate("/admin")}
                     sx={{
-                        fontSize: {
-                            xs: "1.75rem",
-                            sm: "2rem",
-                            md: "2.25rem",
-                        },
+                        minHeight: 44,
+                        borderRadius: 2,
+                        whiteSpace: "nowrap",
                     }}
                 >
-                    User Management
-                </Typography>
-
-                <Typography
-                    variant="body1"
-                    color="text.secondary"
-                    sx={{ mt: 0.5 }}
-                >
-                    Manage volunteers, coordinators,
-                    and administrators.
-                </Typography>
+                    {isMobile
+                        ? "Dashboard"
+                        : "Back to Dashboard"}
+                </Button>
 
             </Box>
 
@@ -709,6 +747,7 @@ function Users() {
                         />
 
                         <FormControl fullWidth>
+
                             <InputLabel>
                                 Role
                             </InputLabel>
@@ -722,6 +761,7 @@ function Users() {
                                     )
                                 }
                             >
+
                                 <MenuItem value="all">
                                     All roles
                                 </MenuItem>
@@ -737,7 +777,9 @@ function Users() {
                                 <MenuItem value="admin">
                                     Administrators
                                 </MenuItem>
+
                             </Select>
+
                         </FormControl>
 
                         <Button
@@ -793,6 +835,7 @@ function Users() {
                             "1px solid rgba(75, 22, 76, 0.08)",
                     }}
                 >
+
                     <CardContent
                         sx={{
                             minHeight: 220,
@@ -821,6 +864,7 @@ function Users() {
                         </Stack>
 
                     </CardContent>
+
                 </Card>
 
             ) : filteredUsers.length === 0 ? (
@@ -832,6 +876,7 @@ function Users() {
                             "1px solid rgba(75, 22, 76, 0.08)",
                     }}
                 >
+
                     <CardContent
                         sx={{
                             minHeight: 220,
@@ -874,6 +919,7 @@ function Users() {
                         </Box>
 
                     </CardContent>
+
                 </Card>
 
             ) : isMobile ? (
