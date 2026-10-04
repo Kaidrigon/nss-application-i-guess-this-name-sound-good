@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from bson import ObjectId
+from fastapi.responses import StreamingResponse
 
 from app.auth.dependencies import require_staff
 
@@ -12,7 +13,7 @@ from app.database import (
 )
 
 from app.reports.schemas import EventReportResponse
-
+from app.reports.excel_generator import generate_event_excel
 
 router = APIRouter(
     prefix="/reports",
@@ -411,3 +412,67 @@ async def generate_event_report(
 
         "evidence_photos": evidence_photos,
     }
+
+# =========================================================
+# GENERATE EVENT EXCEL REPORT
+# =========================================================
+
+@router.get("/event/{event_id}/excel")
+async def generate_event_excel_report(
+    event_id: str,
+    current_user=Depends(require_staff),
+):
+
+    # -----------------------------------------------------
+    # Generate the existing event report data
+    # -----------------------------------------------------
+
+    report_data = await generate_event_report(
+        event_id,
+        current_user,
+    )
+
+    # -----------------------------------------------------
+    # Convert report data into Excel
+    # -----------------------------------------------------
+
+    excel_file = generate_event_excel(
+        report_data
+    )
+
+    # -----------------------------------------------------
+    # Create safe filename
+    # -----------------------------------------------------
+
+    event_title = report_data.get(
+        "event_title",
+        "NSS_Event_Report",
+    )
+
+    safe_title = "".join(
+        character
+        if character.isalnum() or character in " _-"
+        else "_"
+        for character in event_title
+    )
+
+    filename = (
+        f"{safe_title}_NSS_Report.xlsx"
+    )
+
+    # -----------------------------------------------------
+    # Return Excel file
+    # -----------------------------------------------------
+
+    return StreamingResponse(
+        excel_file,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{filename}"'
+            )
+        },
+    )
