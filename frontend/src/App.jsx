@@ -1,20 +1,24 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/auth/Login";
+
 import Register from "./pages/auth/Register";
 
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
-import ServiceHours from "./pages/dashboard/ServiceHours";
-import Events from "./pages/dashboard/Events";
-import History from "./pages/volunteer/History";
-import Profile from "./pages/dashboard/Profile";
-import AdminDashboard from "./pages/admin/AdminDashboard";
 
+import AdminDashboard from "./pages/dashboard/AdminDashboard";
+
+import ServiceHours from "./pages/dashboard/ServiceHours";
+
+import Events from "./pages/dashboard/Events";
+
+import History from "./pages/volunteer/History";
+
+import Profile from "./pages/dashboard/Profile";
 
 function App() {
   return (
     <Routes>
-
       {/* =====================================================
           DEFAULT
       ====================================================== */}
@@ -28,7 +32,6 @@ function App() {
           />
         }
       />
-
 
       {/* =====================================================
           AUTHENTICATION
@@ -44,7 +47,6 @@ function App() {
         element={<Register />}
       />
 
-
       {/* =====================================================
           VOLUNTEER DASHBOARD
       ====================================================== */}
@@ -54,6 +56,14 @@ function App() {
         element={<VolunteerDashboard />}
       />
 
+      {/* =====================================================
+          ADMIN DASHBOARD
+      ====================================================== */}
+
+      <Route
+        path="/admin"
+        element={<AdminDashboard />}
+      />
 
       {/* =====================================================
           EVENTS
@@ -64,7 +74,6 @@ function App() {
         element={<Events />}
       />
 
-
       {/* =====================================================
           SERVICE HOURS
       ====================================================== */}
@@ -74,14 +83,15 @@ function App() {
         element={<ServiceHours />}
       />
 
+      {/* =====================================================
+          PROFILE
+      ====================================================== */}
+
       <Route
-  path="/profile"
-  element={<Profile />}
-/>
-        <Route
-    path="/admin"
-    element={<AdminDashboard />}
-/>
+        path="/profile"
+        element={<Profile />}
+      />
+
       {/* =====================================================
           SERVICE HISTORY
       ====================================================== */}
@@ -90,7 +100,6 @@ function App() {
         path="/history"
         element={<History />}
       />
-
     </Routes>
   );
 }

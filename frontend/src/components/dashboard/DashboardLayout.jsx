@@ -1,6 +1,6 @@
-    import { useState } from "react";
+import { useState } from "react";
 
-    import {
+import {
     AppBar,
     Avatar,
     Box,
@@ -28,6 +28,7 @@
     } from "@mui/icons-material";
 
     import { useNavigate, useLocation } from "react-router-dom";
+
     import { useAuth } from "../../context/AuthContext";
 
     import nssLogo from "../../assets/nss-logo.png";
@@ -46,12 +47,16 @@
     const [mobileOpen, setMobileOpen] = useState(false);
 
     // ---------------------------------------------------------
+    // ROLE
+    // ---------------------------------------------------------
+
+    const isAdmin = user?.role === "admin";
+
+    // ---------------------------------------------------------
     // CLOSE MOBILE DRAWER SAFELY
     // ---------------------------------------------------------
 
     const closeMobileDrawer = () => {
-        // Remove focus before MUI hides the drawer.
-        // This prevents the aria-hidden console warning.
         if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
         }
@@ -162,11 +167,21 @@
             py: 2,
             }}
         >
-            {/* DASHBOARD */}
+            {/* =====================================================
+                DASHBOARD
+            ====================================================== */}
 
             <ListItemButton
-            selected={location.pathname === "/dashboard"}
-            onClick={() => handleNavigation("/dashboard")}
+            selected={
+                isAdmin
+                ? location.pathname === "/admin"
+                : location.pathname === "/dashboard"
+            }
+            onClick={() =>
+                handleNavigation(
+                isAdmin ? "/admin" : "/dashboard"
+                )
+            }
             sx={{
                 borderRadius: 2,
                 mb: 0.5,
@@ -180,65 +195,163 @@
             <ListItemText primary="Dashboard" />
             </ListItemButton>
 
-            {/* EVENTS */}
+            {/* =====================================================
+                ADMIN NAVIGATION
+            ====================================================== */}
+
+            {isAdmin ? (
+            <>
+                {/* USERS */}
+
+                <ListItemButton
+                selected={location.pathname.startsWith(
+                    "/admin/users"
+                )}
+                onClick={() =>
+                    handleNavigation("/admin/users")
+                }
+                sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    minHeight: 48,
+                }}
+                >
+                <ListItemIcon>
+                    <Person />
+                </ListItemIcon>
+
+                <ListItemText primary="Users" />
+                </ListItemButton>
+
+                {/* EVENTS */}
+
+                <ListItemButton
+                selected={location.pathname.startsWith(
+                    "/admin/events"
+                )}
+                onClick={() =>
+                    handleNavigation("/admin/events")
+                }
+                sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    minHeight: 48,
+                }}
+                >
+                <ListItemIcon>
+                    <Event />
+                </ListItemIcon>
+
+                <ListItemText primary="Events" />
+                </ListItemButton>
+
+                {/* REPORTS */}
+
+                <ListItemButton
+                selected={location.pathname.startsWith(
+                    "/admin/reports"
+                )}
+                onClick={() =>
+                    handleNavigation("/admin/reports")
+                }
+                sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    minHeight: 48,
+                }}
+                >
+                <ListItemIcon>
+                    <History />
+                </ListItemIcon>
+
+                <ListItemText primary="Reports" />
+                </ListItemButton>
+            </>
+            ) : (
+            <>
+                {/* =================================================
+                    VOLUNTEER / COORDINATOR NAVIGATION
+                ================================================== */}
+
+                {/* EVENTS */}
+
+                <ListItemButton
+                selected={location.pathname.startsWith(
+                    "/events"
+                )}
+                onClick={() =>
+                    handleNavigation("/events")
+                }
+                sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    minHeight: 48,
+                }}
+                >
+                <ListItemIcon>
+                    <Event />
+                </ListItemIcon>
+
+                <ListItemText primary="Events" />
+                </ListItemButton>
+
+                {/* SERVICE HOURS */}
+
+                <ListItemButton
+                selected={location.pathname.startsWith(
+                    "/service-hours"
+                )}
+                onClick={() =>
+                    handleNavigation("/service-hours")
+                }
+                sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    minHeight: 48,
+                }}
+                >
+                <ListItemIcon>
+                    <AccessTime />
+                </ListItemIcon>
+
+                <ListItemText primary="Service Hours" />
+                </ListItemButton>
+
+                {/* HISTORY */}
+
+                <ListItemButton
+                selected={location.pathname.startsWith(
+                    "/history"
+                )}
+                onClick={() =>
+                    handleNavigation("/history")
+                }
+                sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    minHeight: 48,
+                }}
+                >
+                <ListItemIcon>
+                    <History />
+                </ListItemIcon>
+
+                <ListItemText primary="History" />
+                </ListItemButton>
+            </>
+            )}
+
+            {/* =====================================================
+                PROFILE
+            ====================================================== */}
 
             <ListItemButton
-            selected={location.pathname.startsWith("/events")}
-            onClick={() => handleNavigation("/events")}
-            sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                minHeight: 48,
-            }}
-            >
-            <ListItemIcon>
-                <Event />
-            </ListItemIcon>
-
-            <ListItemText primary="Events" />
-            </ListItemButton>
-
-            {/* SERVICE HOURS */}
-
-            <ListItemButton
-            selected={location.pathname.startsWith("/service-hours")}
-            onClick={() => handleNavigation("/service-hours")}
-            sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                minHeight: 48,
-            }}
-            >
-            <ListItemIcon>
-                <AccessTime />
-            </ListItemIcon>
-
-            <ListItemText primary="Service Hours" />
-            </ListItemButton>
-
-            {/* HISTORY */}
-
-            <ListItemButton
-            selected={location.pathname.startsWith("/history")}
-            onClick={() => handleNavigation("/history")}
-            sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                minHeight: 48,
-            }}
-            >
-            <ListItemIcon>
-                <History />
-            </ListItemIcon>
-
-            <ListItemText primary="History" />
-            </ListItemButton>
-
-            {/* PROFILE */}
-
-            <ListItemButton
-            selected={location.pathname.startsWith("/profile")}
-            onClick={() => handleNavigation("/profile")}
+            selected={location.pathname.startsWith(
+                "/profile"
+            )}
+            onClick={() =>
+                handleNavigation("/profile")
+            }
             sx={{
                 borderRadius: 2,
                 mb: 0.5,
@@ -318,7 +431,8 @@
             borderBottom:
                 "1px solid rgba(75, 22, 76, 0.08)",
 
-            zIndex: (theme) => theme.zIndex.drawer + 1,
+            zIndex: (theme) =>
+                theme.zIndex.drawer + 1,
             }}
         >
             <Toolbar
@@ -373,7 +487,9 @@
                 textOverflow: "ellipsis",
                 }}
             >
-                NSS Dashboard
+                {isAdmin
+                ? "NSS Admin Dashboard"
+                : "NSS Dashboard"}
             </Typography>
 
             {/* USER */}
@@ -399,13 +515,15 @@
                     },
 
                     bgcolor: "primary.main",
+
                     fontSize: {
                     xs: "0.95rem",
                     sm: "1rem",
                     },
                 }}
                 >
-                {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                {user?.name?.charAt(0)?.toUpperCase() ||
+                    "U"}
                 </Avatar>
 
                 {!isMobile && (
@@ -419,7 +537,10 @@
                     fontWeight={600}
                     noWrap
                     >
-                    {user?.name || "Volunteer"}
+                    {user?.name ||
+                        (isAdmin
+                        ? "Administrator"
+                        : "Volunteer")}
                     </Typography>
 
                     <Typography
