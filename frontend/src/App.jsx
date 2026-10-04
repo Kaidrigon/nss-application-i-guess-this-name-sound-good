@@ -4,17 +4,21 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-
 import ServiceHours from "./pages/dashboard/ServiceHours";
 import Events from "./pages/dashboard/Events";
 import History from "./pages/volunteer/History";
 import Profile from "./pages/dashboard/Profile";
 
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import Users from "./pages/admin/Users";
+
 function App() {
     return (
         <Routes>
-            {/* DEFAULT */}
+
+            {/* =====================================================
+                DEFAULT
+            ====================================================== */}
 
             <Route
                 path="/"
@@ -26,7 +30,9 @@ function App() {
                 }
             />
 
-            {/* AUTH */}
+            {/* =====================================================
+                AUTH
+            ====================================================== */}
 
             <Route
                 path="/login"
@@ -38,13 +44,13 @@ function App() {
                 element={<Register />}
             />
 
-            {/* VOLUNTEER */}
+            {/* =====================================================
+                VOLUNTEER
+            ====================================================== */}
 
             <Route
                 path="/dashboard"
-                element={
-                    <VolunteerDashboard />
-                }
+                element={<VolunteerDashboard />}
             />
 
             <Route
@@ -67,14 +73,20 @@ function App() {
                 element={<History />}
             />
 
-            {/* ADMIN */}
+            {/* =====================================================
+                ADMIN
+            ====================================================== */}
 
             <Route
                 path="/admin"
-                element={
-                    <AdminDashboard />
-                }
+                element={<AdminDashboard />}
             />
+
+            <Route
+                path="/admin/users"
+                element={<Users />}
+            />
+
         </Routes>
     );
 }
