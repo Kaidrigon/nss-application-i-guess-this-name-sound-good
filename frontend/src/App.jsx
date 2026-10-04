@@ -8,6 +8,7 @@ import ServiceHours from "./pages/dashboard/ServiceHours";
 import Events from "./pages/dashboard/Events";
 import History from "./pages/volunteer/History";
 import Profile from "./pages/dashboard/Profile";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 
 function App() {
@@ -77,7 +78,10 @@ function App() {
   path="/profile"
   element={<Profile />}
 />
-
+        <Route
+    path="/admin"
+    element={<AdminDashboard />}
+/>
       {/* =====================================================
           SERVICE HISTORY
       ====================================================== */}
