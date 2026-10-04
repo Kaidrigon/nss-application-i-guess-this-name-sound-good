@@ -12,91 +12,71 @@ import History from "./pages/volunteer/History";
 import Profile from "./pages/dashboard/Profile";
 
 function App() {
-  return (
-    <Routes>
-      {/* =====================================================
-          DEFAULT
-      ====================================================== */}
+    return (
+        <Routes>
+            {/* DEFAULT */}
 
-      <Route
-        path="/"
-        element={
-          <Navigate
-            to="/register"
-            replace
-          />
-        }
-      />
+            <Route
+                path="/"
+                element={
+                    <Navigate
+                        to="/register"
+                        replace
+                    />
+                }
+            />
 
-      {/* =====================================================
-          AUTHENTICATION
-      ====================================================== */}
+            {/* AUTH */}
 
-      <Route
-        path="/login"
-        element={<Login />}
-      />
+            <Route
+                path="/login"
+                element={<Login />}
+            />
 
-      <Route
-        path="/register"
-        element={<Register />}
-      />
+            <Route
+                path="/register"
+                element={<Register />}
+            />
 
-      {/* =====================================================
-          VOLUNTEER DASHBOARD
-      ====================================================== */}
+            {/* VOLUNTEER */}
 
-      <Route
-        path="/dashboard"
-        element={<VolunteerDashboard />}
-      />
+            <Route
+                path="/dashboard"
+                element={
+                    <VolunteerDashboard />
+                }
+            />
 
-      {/* =====================================================
-          ADMIN DASHBOARD
-      ====================================================== */}
+            <Route
+                path="/events"
+                element={<Events />}
+            />
 
-      <Route
-        path="/admin"
-        element={<AdminDashboard />}
-      />
+            <Route
+                path="/service-hours"
+                element={<ServiceHours />}
+            />
 
-      {/* =====================================================
-          EVENTS
-      ====================================================== */}
+            <Route
+                path="/profile"
+                element={<Profile />}
+            />
 
-      <Route
-        path="/events"
-        element={<Events />}
-      />
+            <Route
+                path="/history"
+                element={<History />}
+            />
 
-      {/* =====================================================
-          SERVICE HOURS
-      ====================================================== */}
+            {/* ADMIN */}
 
-      <Route
-        path="/service-hours"
-        element={<ServiceHours />}
-      />
-
-      {/* =====================================================
-          PROFILE
-      ====================================================== */}
-
-      <Route
-        path="/profile"
-        element={<Profile />}
-      />
-
-      {/* =====================================================
-          SERVICE HISTORY
-      ====================================================== */}
-
-      <Route
-        path="/history"
-        element={<History />}
-      />
-    </Routes>
-  );
+            <Route
+                path="/admin"
+                element={
+                    <AdminDashboard />
+                }
+            />
+        </Routes>
+    );
 }
 
 export default App;
