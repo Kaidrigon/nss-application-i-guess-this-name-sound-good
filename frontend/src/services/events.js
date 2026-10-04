@@ -6,7 +6,6 @@ import api from "./api";
 
 export async function getEvents() {
     const response = await api.get("/events");
-
     return response.data;
 }
 
@@ -25,7 +24,155 @@ export async function getEvent(eventId) {
 
 
 // =========================================================
+// CREATE EVENT
+// STAFF ONLY
+// =========================================================
+
+export async function createEvent(eventData) {
+    const response = await api.post(
+        "/events",
+        eventData
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// UPDATE EVENT
+// STAFF ONLY
+// =========================================================
+
+export async function updateEvent(eventId, eventData) {
+    const response = await api.patch(
+        `/events/${eventId}`,
+        eventData
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// DELETE EVENT
+// STAFF ONLY
+// =========================================================
+
+export async function deleteEvent(eventId) {
+    const response = await api.delete(
+        `/events/${eventId}`
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// GET EVENT TEMPLATES
+// STAFF ONLY
+// =========================================================
+
+export async function getEventTemplates() {
+    const response = await api.get(
+        "/events/templates"
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// CREATE EVENT TEMPLATE
+// STAFF ONLY
+// =========================================================
+
+export async function createEventTemplate(templateData) {
+    const response = await api.post(
+        "/events/templates",
+        templateData
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// UPDATE EVENT TEMPLATE
+// STAFF ONLY
+// =========================================================
+
+export async function updateEventTemplate(
+    templateId,
+    templateData
+) {
+    const response = await api.patch(
+        `/events/templates/${templateId}`,
+        templateData
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// PUBLISH EVENT
+// STAFF ONLY
+// =========================================================
+
+export async function publishEvent(eventId) {
+    const response = await api.post(
+        `/events/${eventId}/publish`
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// START EVENT
+// STAFF ONLY
+// =========================================================
+
+export async function startEvent(eventId) {
+    const response = await api.post(
+        `/events/${eventId}/start`
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// COMPLETE EVENT
+// STAFF ONLY
+// =========================================================
+
+export async function completeEvent(eventId) {
+    const response = await api.post(
+        `/events/${eventId}/complete`
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// CANCEL EVENT
+// STAFF ONLY
+// =========================================================
+
+export async function cancelEvent(eventId) {
+    const response = await api.post(
+        `/events/${eventId}/cancel`
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
 // REGISTER FOR EVENT
+// VOLUNTEER
 // =========================================================
 
 export async function registerForEvent(eventId) {
@@ -39,6 +186,7 @@ export async function registerForEvent(eventId) {
 
 // =========================================================
 // CANCEL MY REGISTRATION
+// VOLUNTEER
 // =========================================================
 
 export async function cancelRegistration(eventId) {
@@ -52,6 +200,7 @@ export async function cancelRegistration(eventId) {
 
 // =========================================================
 // GET MY REGISTRATION
+// VOLUNTEER
 // =========================================================
 
 export async function getMyRegistration(eventId) {
@@ -65,11 +214,26 @@ export async function getMyRegistration(eventId) {
 
 // =========================================================
 // GET MY ATTENDANCE
+// VOLUNTEER
 // =========================================================
 
 export async function getMyAttendance(eventId) {
     const response = await api.get(
         `/events/${eventId}/attendance/me`
+    );
+
+    return response.data;
+}
+
+
+// =========================================================
+// GET EVENT REGISTRATIONS
+// STAFF ONLY
+// =========================================================
+
+export async function getEventRegistrations(eventId) {
+    const response = await api.get(
+        `/events/${eventId}/registrations`
     );
 
     return response.data;
@@ -106,20 +270,6 @@ export async function markAttendance(
             user_id: userId,
             status: attendanceStatus,
         }
-    );
-
-    return response.data;
-}
-
-
-// =========================================================
-// GET EVENT REGISTRATIONS
-// STAFF ONLY
-// =========================================================
-
-export async function getEventRegistrations(eventId) {
-    const response = await api.get(
-        `/events/${eventId}/registrations`
     );
 
     return response.data;

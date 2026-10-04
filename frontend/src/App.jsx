@@ -12,7 +12,8 @@ import Profile from "./pages/dashboard/Profile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Users from "./pages/admin/Users";
 import AdminEvents from "./pages/admin/Events";
-import EventAttendance from "./pages/dashboard/EventAttendance";
+import EventAttendance from "./pages/admin/EventAttendance";
+
 
 function App() {
     return (
@@ -32,6 +33,7 @@ function App() {
                 }
             />
 
+
             {/* =====================================================
                 AUTH
             ====================================================== */}
@@ -45,6 +47,7 @@ function App() {
                 path="/register"
                 element={<Register />}
             />
+
 
             {/* =====================================================
                 VOLUNTEER
@@ -75,6 +78,7 @@ function App() {
                 element={<History />}
             />
 
+
             {/* =====================================================
                 ADMIN
             ====================================================== */}
@@ -94,8 +98,13 @@ function App() {
                 element={<AdminEvents />}
             />
 
+
+            {/* =====================================================
+                ADMIN EVENT ATTENDANCE
+            ====================================================== */}
+
             <Route
-                path="/event-attendance"
+                path="/admin/events/:eventId/attendance"
                 element={<EventAttendance />}
             />
 

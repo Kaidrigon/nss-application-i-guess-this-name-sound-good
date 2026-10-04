@@ -37,7 +37,10 @@ import {
     Search,
     CheckCircle,
     Schedule,
+    HowToReg,
 } from "@mui/icons-material";
+
+import { useNavigate } from "react-router-dom";
 
 import AdminDashboardLayout from "../../components/dashboard/AdminDashboardLayout";
 
@@ -195,6 +198,7 @@ const emptyTemplateForm = {
 // =========================================================
 
 function Events() {
+    const navigate = useNavigate();
 
     // =====================================================
     // DATA STATE
@@ -1170,6 +1174,25 @@ function Events() {
                 flexWrap="wrap"
                 useFlexGap
             >
+
+            {/* MANAGE ATTENDANCE */}
+
+            {(event.status === "ongoing" ||
+    event.status === "completed") && (
+    <Tooltip title="Manage attendance">
+        <IconButton
+            size="small"
+            color="primary"
+            onClick={() =>
+                navigate(
+                    `/admin/events/${event.id}/attendance`
+                )
+            }
+        >
+            <HowToReg />
+        </IconButton>
+    </Tooltip>
+)}
 
                 {/* EDIT */}
 
