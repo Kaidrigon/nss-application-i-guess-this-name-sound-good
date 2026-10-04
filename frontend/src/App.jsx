@@ -5,49 +5,57 @@ import Register from "./pages/auth/Register";
 
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
 import ServiceHours from "./pages/dashboard/ServiceHours";
+import Events from "./pages/dashboard/Events";
 
 function App() {
-return ( <Routes>
-{/* DEFAULT */}
+  return (
+    <Routes>
+      {/* DEFAULT */}
 
-
-  <Route
-    path="/"
-    element={
-      <Navigate
-        to="/register"
-        replace
+      <Route
+        path="/"
+        element={
+          <Navigate
+            to="/register"
+            replace
+          />
+        }
       />
-    }
-  />
 
-  {/* AUTHENTICATION */}
+      {/* AUTHENTICATION */}
 
-  <Route
-    path="/login"
-    element={<Login />}
-  />
+      <Route
+        path="/login"
+        element={<Login />}
+      />
 
-  <Route
-    path="/register"
-    element={<Register />}
-  />
+      <Route
+        path="/register"
+        element={<Register />}
+      />
 
-  {/* VOLUNTEER */}
+      {/* VOLUNTEER DASHBOARD */}
 
-  <Route
-    path="/dashboard"
-    element={<VolunteerDashboard />}
-  />
+      <Route
+        path="/dashboard"
+        element={<VolunteerDashboard />}
+      />
 
-  <Route
-    path="/service-hours"
-    element={<ServiceHours />}
-  />
-</Routes>
+      {/* EVENTS */}
 
+      <Route
+        path="/events"
+        element={<Events />}
+      />
 
-);
+      {/* SERVICE HOURS */}
+
+      <Route
+        path="/service-hours"
+        element={<ServiceHours />}
+      />
+    </Routes>
+  );
 }
 
 export default App;
