@@ -1,4 +1,4 @@
-
+import nssLogo from "../../assets/nss-logo.png";
 import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 
@@ -66,14 +66,28 @@ import {
         sx={{
             minHeight: "100vh",
             display: "flex",
-            alignItems: "center",
+            flexDirection: "column",
             justifyContent: "center",
+            alignItems: "center",
             px: 2,
             py: 4,
             background:
             "linear-gradient(135deg, #fff4ed 0%, #f8e5e9 48%, #f0e5f5 100%)",
         }}
         >
+        <Box
+            component="img"
+            src={nssLogo}
+            alt="NSS logo"
+            sx={{
+            width: 104,
+            height: 104,
+            objectFit: "contain",
+            mb: 2,
+            filter: "drop-shadow(0 8px 25px rgba(75, 22, 76, 0.15))",
+            }}
+        />
+
         <Card
             elevation={0}
             sx={{
@@ -87,20 +101,6 @@ import {
         >
             <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
             <Stack spacing={3} alignItems="center">
-                <Box
-                component="img"
-                src="/nss-logo.png"
-                alt="NSS logo"
-                sx={{
-                    width: 88,
-                    height: 88,
-                    objectFit: "contain",
-                }}
-                onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                }}
-                />
-
                 <Box textAlign="center">
                 <Typography
                     variant="h4"
@@ -219,6 +219,20 @@ import {
             </Stack>
             </CardContent>
         </Card>
+
+        <Typography
+            variant="caption"
+            sx={{
+            mt: 3,
+            color: "#4b164c",
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            textAlign: "center",
+            opacity: 0.9,
+            }}
+        >
+            currently managed by keshav/kaidrigon
+        </Typography>
         </Box>
     );
     }
