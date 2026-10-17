@@ -17,7 +17,7 @@ import EventAttendance from "./pages/admin/EventAttendance";
 import Reports from "./pages/admin/Reports";
 import EventPhotos from "./pages/admin/EventPhotos";
 import AdminProfile from "./pages/admin/Profile";
-
+import About from "./pages/About";
 
 function App() {
 
@@ -39,6 +39,7 @@ function App() {
                 }
             />
 
+            <Route path="/about" element={<About />} />
 
             {/* =====================================================
                 AUTH
