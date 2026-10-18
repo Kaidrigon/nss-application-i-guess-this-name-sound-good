@@ -1,14 +1,8 @@
 # here bassically we are creating registration and logins and alot of things like hasing using security.py and schemas for request from schemas.py and then we are using the users_collection from database.py to store the user data in the db.
 import re
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    Header,
-    HTTPException,
-    status,
-)
 from bson import ObjectId
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.auth.dependencies import (
     get_current_user,
@@ -35,10 +29,7 @@ from app.config import ADMIN_SETUP_KEY
 from app.database import users_collection
 
 
-router = APIRouter(
-    prefix="/auth",
-    tags=["Authentication"],
-)
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 # =========================================================
@@ -47,10 +38,7 @@ router = APIRouter(
 
 def is_email(value: str) -> bool:
     return bool(
-        re.match(
-            r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-            value.strip(),
-        )
+        re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", value.strip())
     )
 
 
@@ -60,14 +48,9 @@ def normalize_phone(value: str | None) -> str:
         return ""
 
     value = value.strip()
-
-    # Keep digits and a possible leading +.
     digits = re.sub(r"\D", "", value)
 
-    if value.startswith("+"):
-        return f"+{digits}"
-
-    return digits
+    return f"+{digits}" if value.startswith("+") else digits
 
 
 async def phone_number_is_taken(
@@ -81,20 +64,13 @@ async def phone_number_is_taken(
         return False
 
     query = {}
-
     if exclude_user_id is not None:
         query["_id"] = {"$ne": exclude_user_id}
 
-    cursor = users_collection.find(
-        query,
-        {"phone_number": 1},
-    )
+    cursor = users_collection.find(query, {"phone_number": 1})
 
     async for user in cursor:
-        existing_phone = normalize_phone(
-            user.get("phone_number")
-        )
-
+        existing_phone = normalize_phone(user.get("phone_number"))
         if existing_phone and existing_phone == normalized:
             return True
 
@@ -102,17 +78,9 @@ async def phone_number_is_taken(
 
 
 async def find_user_by_login_id(login_id: str):
-    """
-    Find a user by:
-    - Email
-    - Roll number
-    - Phone number
-
-    Existing volunteer login IDs continue to work.
-    """
+    """Find a user by email, roll number, or phone number."""
     login_id = login_id.strip()
 
-    # First check email and roll number.
     user = await users_collection.find_one(
         {
             "$or": [
@@ -125,38 +93,42 @@ async def find_user_by_login_id(login_id: str):
     if user:
         return user
 
-    # Then check phone numbers, ignoring formatting differences.
     normalized_login = normalize_phone(login_id)
-
     if not normalized_login:
         return None
 
     cursor = users_collection.find(
-        {"phone_number": {"$exists": True, "$ne": None}}
+        {"phone_number": {"$exists": True, "$ne": None}},
     )
 
     async for candidate in cursor:
-        existing_phone = normalize_phone(
-            candidate.get("phone_number")
-        )
-
-        if (
-            existing_phone
-            and existing_phone == normalized_login
-        ):
+        existing_phone = normalize_phone(candidate.get("phone_number"))
+        if existing_phone and existing_phone == normalized_login:
             return candidate
 
     return None
+
+
+def public_user(user: dict) -> dict:
+    """Return user information without sensitive password data."""
+    return {
+        "id": str(user["_id"]),
+        "name": user.get("name"),
+        "roll_number": user.get("roll_number"),
+        "email": user.get("email"),
+        "phone_number": user.get("phone_number"),
+        "class_name": user.get("class_name"),
+        "year": user.get("year"),
+        "role": user.get("role"),
+        "service_hours": user.get("service_hours", 0),
+    }
 
 
 # =========================================================
 # REGISTER VOLUNTEER
 # =========================================================
 
-@router.post(
-    "/register",
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: RegisterRequest):
     login_id = user.login_id.strip()
 
@@ -164,25 +136,16 @@ async def register(user: RegisterRequest):
         email = login_id.lower()
         roll_number = None
 
-        existing_user = await users_collection.find_one(
-            {"email": email}
-        )
-
-        if existing_user:
+        if await users_collection.find_one({"email": email}):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
             )
-
     else:
         roll_number = login_id
         email = None
 
-        existing_user = await users_collection.find_one(
-            {"roll_number": roll_number}
-        )
-
-        if existing_user:
+        if await users_collection.find_one({"roll_number": roll_number}):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Roll number already registered",
@@ -210,12 +173,10 @@ async def register(user: RegisterRequest):
 
 # =========================================================
 # REGISTER FIRST ADMIN
+# NOTE: This preserves your existing RegisterRequest contract.
 # =========================================================
 
-@router.post(
-    "/register-admin",
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/register-admin", status_code=status.HTTP_201_CREATED)
 async def register_admin(
     user: RegisterRequest,
     setup_key: str = Header(..., alias="setup-key"),
@@ -226,11 +187,7 @@ async def register_admin(
             detail="Invalid admin setup key",
         )
 
-    existing_admin = await users_collection.find_one(
-        {"role": "admin"}
-    )
-
-    if existing_admin:
+    if await users_collection.find_one({"role": "admin"}):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin setup has already been completed",
@@ -242,25 +199,16 @@ async def register_admin(
         email = login_id.lower()
         roll_number = None
 
-        existing_user = await users_collection.find_one(
-            {"email": email}
-        )
-
-        if existing_user:
+        if await users_collection.find_one({"email": email}):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
             )
-
     else:
         roll_number = login_id
         email = None
 
-        existing_user = await users_collection.find_one(
-            {"roll_number": roll_number}
-        )
-
-        if existing_user:
+        if await users_collection.find_one({"roll_number": roll_number}):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Roll number already registered",
@@ -291,21 +239,14 @@ async def register_admin(
 # Admin can create coordinator or additional admin accounts.
 # =========================================================
 
-@router.post(
-    "/create-staff",
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/create-staff", status_code=status.HTTP_201_CREATED)
 async def create_staff(
     data: StaffAccountCreateRequest,
     current_user=Depends(require_admin),
 ):
     name = data.name.strip()
     email = data.email.strip().lower() if data.email else None
-    phone_number = (
-        data.phone_number.strip()
-        if data.phone_number
-        else None
-    )
+    phone_number = data.phone_number.strip() if data.phone_number else None
 
     if not name:
         raise HTTPException(
@@ -332,22 +273,17 @@ async def create_staff(
                 detail="Enter a valid email address",
             )
 
-        existing_email = await users_collection.find_one(
-            {"email": email}
-        )
-
-        if existing_email:
+        if await users_collection.find_one({"email": email}):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email is already being used",
             )
 
-    if phone_number:
-        if await phone_number_is_taken(phone_number):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Phone number is already being used",
-            )
+    if phone_number and await phone_number_is_taken(phone_number):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phone number is already being used",
+        )
 
     new_staff = {
         "name": name,
@@ -377,10 +313,7 @@ async def create_staff(
 # Staff: email or phone number
 # =========================================================
 
-@router.post(
-    "/login",
-    response_model=TokenResponse,
-)
+@router.post("/login", response_model=TokenResponse)
 async def login(user: LoginRequest):
     login_id = user.login_id.strip()
 
@@ -395,12 +328,7 @@ async def login(user: LoginRequest):
             detail="Invalid credentials",
         )
 
-    password_is_valid = verify_password(
-        user.password,
-        existing_user["password_hash"],
-    )
-
-    if not password_is_valid:
+    if not verify_password(user.password, existing_user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -422,25 +350,12 @@ async def login(user: LoginRequest):
 # =========================================================
 
 @router.get("/me")
-async def get_me(
-    current_user=Depends(get_current_user),
-):
-    return {
-        "id": str(current_user["_id"]),
-        "name": current_user["name"],
-        "roll_number": current_user.get("roll_number"),
-        "email": current_user.get("email"),
-        "phone_number": current_user.get("phone_number"),
-        "class_name": current_user.get("class_name"),
-        "year": current_user.get("year"),
-        "role": current_user["role"],
-        "service_hours": current_user.get("service_hours", 0),
-    }
+async def get_me(current_user=Depends(get_current_user)):
+    return public_user(current_user)
 
 
 # =========================================================
-# UPDATE OWN PROFILE
-# Existing volunteer profile endpoint.
+# UPDATE VOLUNTEER PROFILE
 # =========================================================
 
 @router.patch("/me")
@@ -448,107 +363,14 @@ async def update_my_profile(
     data: ProfileUpdateRequest,
     current_user=Depends(get_current_user),
 ):
+    if current_user.get("role") != "volunteer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is for volunteer profiles",
+        )
+
     name = data.name.strip()
     login_id = data.login_id.strip()
-    class_name = data.class_name.strip()
-
-    if not name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Name is required",
-        )
-
-    if not login_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Roll number or email is required",
-        )
-
-    if not class_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Class is required",
-        )
-
-    if is_email(login_id):
-        new_email = login_id.lower()
-        new_roll_number = None
-
-        existing_user = await users_collection.find_one(
-            {
-                "email": new_email,
-                "_id": {"$ne": current_user["_id"]},
-            }
-        )
-
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
-            )
-
-    else:
-        new_roll_number = login_id
-        new_email = None
-
-        existing_user = await users_collection.find_one(
-            {
-                "roll_number": new_roll_number,
-                "_id": {"$ne": current_user["_id"]},
-            }
-        )
-
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Roll number already registered",
-            )
-
-    await users_collection.update_one(
-        {"_id": current_user["_id"]},
-        {
-            "$set": {
-                "name": name,
-                "roll_number": new_roll_number,
-                "email": new_email,
-                "class_name": class_name,
-                "year": data.year,
-            }
-        },
-    )
-
-    updated_user = await users_collection.find_one(
-        {"_id": current_user["_id"]}
-    )
-
-    return {
-        "message": "Profile updated successfully",
-        "user": {
-            "id": str(updated_user["_id"]),
-            "name": updated_user["name"],
-            "roll_number": updated_user.get("roll_number"),
-            "email": updated_user.get("email"),
-            "phone_number": updated_user.get("phone_number"),
-            "class_name": updated_user.get("class_name"),
-            "year": updated_user.get("year"),
-            "role": updated_user["role"],
-            "service_hours": updated_user.get("service_hours", 0),
-        },
-    }
-
-
-# =========================================================
-# LEGACY PROFILE ENDPOINT
-# Kept so existing frontend requests continue to work.
-# =========================================================
-
-@router.patch("/profile")
-async def update_profile(
-    data: ProfileUpdateRequest,
-    current_user=Depends(get_current_user),
-):
-    login_id = data.login_id.strip()
-    name = data.name.strip()
     class_name = data.class_name.strip()
 
     if not name or not login_id or not class_name:
@@ -560,36 +382,29 @@ async def update_profile(
     if is_email(login_id):
         new_email = login_id.lower()
         new_roll_number = None
-
         existing_user = await users_collection.find_one(
             {
                 "email": new_email,
                 "_id": {"$ne": current_user["_id"]},
             }
         )
-
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email is already being used by another user",
-            )
-
+        duplicate_message = "Email already registered"
     else:
         new_roll_number = login_id
         new_email = None
-
         existing_user = await users_collection.find_one(
             {
                 "roll_number": new_roll_number,
                 "_id": {"$ne": current_user["_id"]},
             }
         )
+        duplicate_message = "Roll number already registered"
 
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Roll number is already being used by another user",
-            )
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=duplicate_message,
+        )
 
     await users_collection.update_one(
         {"_id": current_user["_id"]},
@@ -610,23 +425,82 @@ async def update_profile(
 
     return {
         "message": "Profile updated successfully",
-        "user": {
-            "id": str(updated_user["_id"]),
-            "name": updated_user["name"],
-            "roll_number": updated_user.get("roll_number"),
-            "email": updated_user.get("email"),
-            "phone_number": updated_user.get("phone_number"),
-            "class_name": updated_user.get("class_name"),
-            "year": updated_user.get("year"),
-            "role": updated_user["role"],
-            "service_hours": updated_user.get("service_hours", 0),
+        "user": public_user(updated_user),
+    }
+
+
+# =========================================================
+# LEGACY VOLUNTEER PROFILE ENDPOINT
+# =========================================================
+
+@router.patch("/profile")
+async def update_profile(
+    data: ProfileUpdateRequest,
+    current_user=Depends(get_current_user),
+):
+    # Retain this route for any frontend still using /auth/profile.
+    if current_user.get("role") != "volunteer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is for volunteer profiles",
+        )
+
+    name = data.name.strip()
+    login_id = data.login_id.strip()
+    class_name = data.class_name.strip()
+
+    if not name or not login_id or not class_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name, login ID and class are required",
+        )
+
+    if is_email(login_id):
+        new_email = login_id.lower()
+        new_roll_number = None
+        duplicate_query = {"email": new_email}
+        duplicate_message = "Email is already being used by another user"
+    else:
+        new_roll_number = login_id
+        new_email = None
+        duplicate_query = {"roll_number": new_roll_number}
+        duplicate_message = "Roll number is already being used by another user"
+
+    duplicate_query["_id"] = {"$ne": current_user["_id"]}
+
+    if await users_collection.find_one(duplicate_query):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=duplicate_message,
+        )
+
+    await users_collection.update_one(
+        {"_id": current_user["_id"]},
+        {
+            "$set": {
+                "name": name,
+                "roll_number": new_roll_number,
+                "email": new_email,
+                "class_name": class_name,
+                "year": data.year,
+            }
         },
+    )
+
+    updated_user = await users_collection.find_one(
+        {"_id": current_user["_id"]}
+    )
+
+    return {
+        "message": "Profile updated successfully",
+        "user": public_user(updated_user),
     }
 
 
 # =========================================================
 # UPDATE STAFF CONTACT DETAILS
-# Staff can add or update their email/phone from Profile.
+# Staff can add a missing email or phone number.
+# Blank fields preserve existing values.
 # =========================================================
 
 @router.patch("/me/contact-details")
@@ -641,12 +515,15 @@ async def update_staff_contact_details(
         )
 
     name = data.name.strip()
-    email = data.email.strip().lower() if data.email else None
-    phone_number = (
-        data.phone_number.strip()
-        if data.phone_number
-        else None
+
+    # Preserve existing contacts when the submitted field is blank.
+    submitted_email = data.email.strip().lower() if data.email else None
+    submitted_phone = (
+        data.phone_number.strip() if data.phone_number else None
     )
+
+    email = submitted_email or current_user.get("email")
+    phone_number = submitted_phone or current_user.get("phone_number")
 
     if not name:
         raise HTTPException(
@@ -660,8 +537,8 @@ async def update_staff_contact_details(
             detail="Provide at least an email address or phone number",
         )
 
-    if email:
-        if not is_email(email):
+    if submitted_email:
+        if not is_email(submitted_email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Enter a valid email address",
@@ -669,7 +546,7 @@ async def update_staff_contact_details(
 
         existing_email = await users_collection.find_one(
             {
-                "email": email,
+                "email": submitted_email,
                 "_id": {"$ne": current_user["_id"]},
             }
         )
@@ -680,9 +557,9 @@ async def update_staff_contact_details(
                 detail="Email is already being used by another user",
             )
 
-    if phone_number:
+    if submitted_phone:
         if await phone_number_is_taken(
-            phone_number,
+            submitted_phone,
             exclude_user_id=current_user["_id"],
         ):
             raise HTTPException(
@@ -724,18 +601,13 @@ async def update_staff_contact_details(
 @router.get("/admins")
 async def get_admin_names():
     admins = []
-
     cursor = users_collection.find(
         {"role": "admin"},
         {"_id": 0, "name": 1},
     )
 
     async for admin in cursor:
-        admins.append(
-            {
-                "name": admin.get("name", "Administrator")
-            }
-        )
+        admins.append({"name": admin.get("name", "Administrator")})
 
     return admins
 
@@ -745,9 +617,7 @@ async def get_admin_names():
 # =========================================================
 
 @router.get("/admin-test")
-async def admin_test(
-    current_user=Depends(require_admin),
-):
+async def admin_test(current_user=Depends(require_admin)):
     return {
         "message": "You have admin access",
         "admin": current_user["name"],
@@ -772,29 +642,18 @@ async def change_password(
             detail="Current password is incorrect",
         )
 
-    if verify_password(
-        data.new_password,
-        current_user["password_hash"],
-    ):
+    if verify_password(data.new_password, current_user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password must be different",
         )
 
-    new_password_hash = hash_password(data.new_password)
-
     await users_collection.update_one(
         {"_id": current_user["_id"]},
-        {
-            "$set": {
-                "password_hash": new_password_hash
-            }
-        },
+        {"$set": {"password_hash": hash_password(data.new_password)}},
     )
 
-    return {
-        "message": "Password changed successfully"
-    }
+    return {"message": "Password changed successfully"}
 
 
 # =========================================================
@@ -830,20 +689,12 @@ async def reset_password(
             detail="Coordinators can only reset volunteer passwords",
         )
 
-    new_password_hash = hash_password(data.new_password)
-
     await users_collection.update_one(
         {"_id": user["_id"]},
-        {
-            "$set": {
-                "password_hash": new_password_hash
-            }
-        },
+        {"$set": {"password_hash": hash_password(data.new_password)}},
     )
 
-    return {
-        "message": "Password reset successfully"
-    }
+    return {"message": "Password reset successfully"}
 
 
 # =========================================================
@@ -852,30 +703,12 @@ async def reset_password(
 # =========================================================
 
 @router.get("/users")
-async def get_users(
-    current_user=Depends(require_admin),
-):
+async def get_users(current_user=Depends(require_admin)):
     users = []
-
-    cursor = users_collection.find(
-        {},
-        {"password_hash": 0},
-    )
+    cursor = users_collection.find({}, {"password_hash": 0})
 
     async for user in cursor:
-        users.append(
-            {
-                "id": str(user["_id"]),
-                "name": user["name"],
-                "roll_number": user.get("roll_number"),
-                "email": user.get("email"),
-                "phone_number": user.get("phone_number"),
-                "class_name": user.get("class_name"),
-                "year": user.get("year"),
-                "role": user["role"],
-                "service_hours": user.get("service_hours", 0),
-            }
-        )
+        users.append(public_user(user))
 
     return users
 
@@ -899,9 +732,7 @@ async def change_user_role(
             detail="Invalid user ID",
         )
 
-    target_user = await users_collection.find_one(
-        {"_id": target_user_id}
-    )
+    target_user = await users_collection.find_one({"_id": target_user_id})
 
     if not target_user:
         raise HTTPException(
@@ -918,10 +749,7 @@ async def change_user_role(
             detail="You cannot remove your own admin role",
         )
 
-    if (
-        target_user["role"] == "admin"
-        and data.role != "admin"
-    ):
+    if target_user["role"] == "admin" and data.role != "admin":
         admin_count = await users_collection.count_documents(
             {"role": "admin"}
         )
@@ -934,11 +762,7 @@ async def change_user_role(
 
     await users_collection.update_one(
         {"_id": target_user_id},
-        {
-            "$set": {
-                "role": data.role
-            }
-        },
+        {"$set": {"role": data.role}},
     )
 
     return {
