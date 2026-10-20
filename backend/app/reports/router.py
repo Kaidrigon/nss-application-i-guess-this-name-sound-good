@@ -13,6 +13,7 @@ from app.database import (
 )
 from app.reports.schemas import EventReportResponse
 from app.reports.excel_generator import generate_event_excel
+from app.reports.word_generator import generate_event_word
 
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -296,6 +297,39 @@ async def generate_event_excel_report(
         media_type=(
             "application/vnd.openxmlformats-officedocument."
             "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
+    )
+
+@router.get("/event/{event_id}/word")
+async def generate_event_word_report(
+    event_id: str,
+    current_user=Depends(require_staff),
+):
+    # Reuse the same report data as the Excel export.
+    report_data = await generate_event_report(event_id, current_user)
+
+    # Generate the Word document.
+    word_file = generate_event_word(report_data)
+
+    # Build a safe filename from the event title.
+    safe_title = "".join(
+        char if char.isalnum() or char in " _-" else "_"
+        for char in report_data.get("event_title", "NSS_Event_Report")
+    ).strip()
+
+    if not safe_title:
+        safe_title = "NSS_Event_Report"
+
+    filename = f"{safe_title}_NSS_Report.docx"
+
+    return StreamingResponse(
+        word_file,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "wordprocessingml.document"
         ),
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"'
