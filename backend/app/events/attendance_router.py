@@ -1,30 +1,99 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
 from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, status
+from pymongo.errors import DuplicateKeyError
 
-from app.auth.dependencies import (
-    get_current_user,
-    require_staff,
-)
-
+from app.auth.dependencies import get_current_user, require_staff
 from app.database import (
+    client,
     users_collection,
     events_collection,
     event_registrations_collection,
     event_attendance_collection,
     service_hour_history_collection,
 )
-
-from app.events.attendance_schemas import (
-    MarkAttendanceRequest,
-)
+from app.events.attendance_schemas import MarkAttendanceRequest
 
 
-router = APIRouter(
-    prefix="/events",
-    tags=["Attendance"],
-)
+router = APIRouter(prefix="/events", tags=["Attendance"])
+
+
+def parse_object_id(value: str, label: str) -> ObjectId:
+    try:
+        return ObjectId(value)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid {label} ID",
+        )
+
+
+async def lock_event_hours(event_id: ObjectId) -> dict:
+    """
+    Lock the event's credited hours before attendance is processed.
+    """
+    await events_collection.update_one(
+        {
+            "_id": event_id,
+            "credited_hours_locked": {"$ne": True},
+        },
+        {
+            "$set": {
+                "credited_hours_locked": True,
+                "credited_hours_locked_at": datetime.now(timezone.utc),
+            }
+        },
+    )
+
+    event = await events_collection.find_one({"_id": event_id})
+
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found",
+        )
+
+    return event
+
+
+async def record_service_hours(
+    user_id: ObjectId,
+    event: dict,
+    hours: float,
+    action: str,
+    reason: str,
+    session,
+):
+    """
+    Update the volunteer's total and create its history entry.
+
+    Both writes participate in the caller's MongoDB transaction.
+    """
+    result = await users_collection.update_one(
+        {"_id": user_id},
+        {"$inc": {"service_hours": hours}},
+        session=session,
+    )
+
+    if result.matched_count != 1:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Volunteer not found while updating service hours",
+        )
+
+    await service_hour_history_collection.insert_one(
+        {
+            "user_id": user_id,
+            "event_id": event["_id"],
+            "event_title": event["title"],
+            "hours": hours,
+            "action": action,
+            "reason": reason,
+            "recorded_at": datetime.now(timezone.utc),
+        },
+        session=session,
+    )
 
 
 # =========================================================
@@ -37,38 +106,9 @@ async def mark_attendance(
     data: MarkAttendanceRequest,
     current_user=Depends(require_staff),
 ):
-
-    # -----------------------------------------------------
-    # Validate event ID
-    # -----------------------------------------------------
-
-    try:
-        event_object_id = ObjectId(event_id)
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid event ID",
-        )
-
-    # -----------------------------------------------------
-    # Validate user ID
-    # -----------------------------------------------------
-
-    try:
-        user_object_id = ObjectId(data.user_id)
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid user ID",
-        )
-
+    event_object_id = parse_object_id(event_id, "event")
+    user_object_id = parse_object_id(data.user_id, "user")
     attendance_status = data.status.value
-
-    # -----------------------------------------------------
-    # Find event
-    # -----------------------------------------------------
 
     event = await events_collection.find_one(
         {"_id": event_object_id}
@@ -80,26 +120,14 @@ async def mark_attendance(
             detail="Event not found",
         )
 
-    # -----------------------------------------------------
-    # Attendance can be marked while event is ongoing
-    # or after it has been completed.
-    # -----------------------------------------------------
-
-    if event.get("status") not in [
-        "ongoing",
-        "completed",
-    ]:
+    if event.get("status") not in ("ongoing", "completed"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                "Attendance can only be marked for "
-                "ongoing or completed events"
+                "Attendance can only be marked for ongoing "
+                "or completed events"
             ),
         )
-
-    # -----------------------------------------------------
-    # Find volunteer
-    # -----------------------------------------------------
 
     user = await users_collection.find_one(
         {"_id": user_object_id}
@@ -111,19 +139,11 @@ async def mark_attendance(
             detail="User not found",
         )
 
-    # -----------------------------------------------------
-    # Only volunteers can have attendance
-    # -----------------------------------------------------
-
     if user.get("role") != "volunteer":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Attendance can only be marked for volunteers",
         )
-
-    # -----------------------------------------------------
-    # Check registration
-    # -----------------------------------------------------
 
     registration = await event_registrations_collection.find_one(
         {
@@ -139,201 +159,160 @@ async def mark_attendance(
             detail="Volunteer is not registered for this event",
         )
 
-    # -----------------------------------------------------
-    # Event credited hours
-    # -----------------------------------------------------
-
+    # Lock and reread the event's credited hours.
+    event = await lock_event_hours(event_object_id)
     credited_hours = event.get("credited_hours", 0)
 
-    # -----------------------------------------------------
-    # Check existing attendance
-    # -----------------------------------------------------
+    now = datetime.now(timezone.utc)
 
-    existing_attendance = (
-        await event_attendance_collection.find_one(
-            {
-                "event_id": event_object_id,
-                "user_id": user_object_id,
-            }
-        )
-    )
+    try:
+        # One transaction for attendance, totals and history.
+        async with client.start_session() as session:
+            async with await session.start_transaction():
 
-    # =====================================================
-    # EXISTING ATTENDANCE
-    # =====================================================
+                existing = await event_attendance_collection.find_one(
+                    {
+                        "event_id": event_object_id,
+                        "user_id": user_object_id,
+                    },
+                    session=session,
+                )
 
-    if existing_attendance:
+                # -------------------------------------------------
+                # Existing attendance
+                # -------------------------------------------------
 
-        old_status = existing_attendance.get("status")
+                if existing:
+                    old_status = existing.get("status")
 
-        # -------------------------------------------------
-        # Nothing changed
-        # -------------------------------------------------
+                    if old_status == attendance_status:
+                        return {
+                            "message": "Attendance is already marked",
+                            "status": attendance_status,
+                            "service_hours_changed": 0,
+                        }
 
-        if old_status == attendance_status:
+                    if (
+                        old_status == "attended"
+                        and attendance_status == "absent"
+                    ):
+                        hours_changed = -credited_hours
 
-            return {
-                "message": "Attendance is already marked",
-                "status": attendance_status,
-                "service_hours_changed": 0,
-            }
+                        await record_service_hours(
+                            user_id=user_object_id,
+                            event=event,
+                            hours=hours_changed,
+                            action="reversed",
+                            reason=(
+                                "Attendance changed from attended "
+                                "to absent"
+                            ),
+                            session=session,
+                        )
 
-        # -------------------------------------------------
-        # ATTENDED → ABSENT
-        #
-        # Remove previously credited hours.
-        # -------------------------------------------------
+                    elif (
+                        old_status == "absent"
+                        and attendance_status == "attended"
+                    ):
+                        hours_changed = credited_hours
 
-        if (
-            old_status == "attended"
-            and attendance_status == "absent"
-        ):
+                        await record_service_hours(
+                            user_id=user_object_id,
+                            event=event,
+                            hours=hours_changed,
+                            action="credited",
+                            reason=(
+                                "Attendance changed from absent "
+                                "to attended"
+                            ),
+                            session=session,
+                        )
 
-            await users_collection.update_one(
-                {"_id": user_object_id},
-                {
-                    "$inc": {
-                        "service_hours": -credited_hours
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail="Unexpected existing attendance status",
+                        )
+
+                    # Only update the record if its status is still
+                    # the status we originally read.
+                    update_result = await event_attendance_collection.update_one(
+                        {
+                            "_id": existing["_id"],
+                            "status": old_status,
+                        },
+                        {
+                            "$set": {
+                                "status": attendance_status,
+                                "marked_by": current_user["_id"],
+                                "marked_at": now,
+                            }
+                        },
+                        session=session,
+                    )
+
+                    if update_result.matched_count != 1:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail=(
+                                "Attendance changed concurrently. "
+                                "Refresh the attendance list and try again."
+                            ),
+                        )
+
+                    return {
+                        "message": "Attendance updated successfully",
+                        "status": attendance_status,
+                        "service_hours_changed": hours_changed,
                     }
-                },
-            )
 
-            await service_hour_history_collection.insert_one(
-                {
-                    "user_id": user_object_id,
+                # -------------------------------------------------
+                # First attendance record
+                # -------------------------------------------------
+
+                attendance = {
                     "event_id": event_object_id,
-                    "event_title": event["title"],
-                    "hours": -credited_hours,
-                    "action": "reversed",
-                    "reason": (
-                        "Attendance changed from "
-                        "attended to absent"
-                    ),
-                    "recorded_at": datetime.now(timezone.utc),
-                }
-            )
-
-            hours_changed = -credited_hours
-
-        # -------------------------------------------------
-        # ABSENT → ATTENDED
-        #
-        # Add hours.
-        # -------------------------------------------------
-
-        elif (
-            old_status == "absent"
-            and attendance_status == "attended"
-        ):
-
-            await users_collection.update_one(
-                {"_id": user_object_id},
-                {
-                    "$inc": {
-                        "service_hours": credited_hours
-                    }
-                },
-            )
-
-            await service_hour_history_collection.insert_one(
-                {
                     "user_id": user_object_id,
-                    "event_id": event_object_id,
-                    "event_title": event["title"],
-                    "hours": credited_hours,
-                    "action": "credited",
-                    "reason": (
-                        "Attendance changed from "
-                        "absent to attended"
-                    ),
-                    "recorded_at": datetime.now(timezone.utc),
-                }
-            )
-
-            hours_changed = credited_hours
-
-        else:
-            hours_changed = 0
-
-        # -------------------------------------------------
-        # Update attendance record
-        # -------------------------------------------------
-
-        await event_attendance_collection.update_one(
-            {"_id": existing_attendance["_id"]},
-            {
-                "$set": {
                     "status": attendance_status,
                     "marked_by": current_user["_id"],
-                    "marked_at": datetime.now(timezone.utc),
+                    "marked_at": now,
                 }
-            },
-        )
 
-        return {
-            "message": "Attendance updated successfully",
-            "status": attendance_status,
-            "service_hours_changed": hours_changed,
-        }
+                await event_attendance_collection.insert_one(
+                    attendance,
+                    session=session,
+                )
 
-    # =====================================================
-    # NEW ATTENDANCE RECORD
-    # =====================================================
+                if attendance_status == "attended":
+                    await record_service_hours(
+                        user_id=user_object_id,
+                        event=event,
+                        hours=credited_hours,
+                        action="credited",
+                        reason="Event attendance",
+                        session=session,
+                    )
 
-    attendance = {
-        "event_id": event_object_id,
-        "user_id": user_object_id,
-        "status": attendance_status,
-        "marked_by": current_user["_id"],
-        "marked_at": datetime.now(timezone.utc),
-    }
+                    return {
+                        "message": "Attendance marked successfully",
+                        "status": "attended",
+                        "service_hours_changed": credited_hours,
+                    }
 
-    await event_attendance_collection.insert_one(
-        attendance
-    )
-
-    # -----------------------------------------------------
-    # Credit hours only if attended
-    # -----------------------------------------------------
-
-    if attendance_status == "attended":
-
-        await users_collection.update_one(
-            {"_id": user_object_id},
-            {
-                "$inc": {
-                    "service_hours": credited_hours
+                return {
+                    "message": "Attendance marked successfully",
+                    "status": "absent",
+                    "service_hours_changed": 0,
                 }
-            },
+
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Attendance was already recorded by another request. "
+                "Refresh the attendance list and try again if needed."
+            ),
         )
-
-        await service_hour_history_collection.insert_one(
-            {
-                "user_id": user_object_id,
-                "event_id": event_object_id,
-                "event_title": event["title"],
-                "hours": credited_hours,
-                "action": "credited",
-                "reason": "Event attendance",
-                "recorded_at": datetime.now(timezone.utc),
-            }
-        )
-
-        return {
-            "message": "Attendance marked successfully",
-            "status": "attended",
-            "service_hours_changed": credited_hours,
-        }
-
-    # -----------------------------------------------------
-    # Absent
-    # -----------------------------------------------------
-
-    return {
-        "message": "Attendance marked successfully",
-        "status": "absent",
-        "service_hours_changed": 0,
-    }
 
 
 # =========================================================
@@ -345,23 +324,7 @@ async def get_event_attendance(
     event_id: str,
     current_user=Depends(require_staff),
 ):
-
-    # -----------------------------------------------------
-    # Validate event ID
-    # -----------------------------------------------------
-
-    try:
-        event_object_id = ObjectId(event_id)
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid event ID",
-        )
-
-    # -----------------------------------------------------
-    # Check event
-    # -----------------------------------------------------
+    event_object_id = parse_object_id(event_id, "event")
 
     event = await events_collection.find_one(
         {"_id": event_object_id}
@@ -373,31 +336,20 @@ async def get_event_attendance(
             detail="Event not found",
         )
 
-    # -----------------------------------------------------
-    # Get ALL registered volunteers
-    #
-    # This is important:
-    # Volunteers without an attendance record yet
-    # must still appear in the admin attendance screen.
-    # -----------------------------------------------------
+    attendance_list = []
 
-    registrations_cursor = event_registrations_collection.find(
+    registrations = event_registrations_collection.find(
         {
             "event_id": event_object_id,
             "status": "registered",
         }
     )
 
-    attendance_list = []
-
-    async for registration in registrations_cursor:
-
+    async for registration in registrations:
         user_id = registration["user_id"]
 
         user = await users_collection.find_one(
-            {
-                "_id": user_id
-            }
+            {"_id": user_id}
         )
 
         if not user:
@@ -410,70 +362,35 @@ async def get_event_attendance(
             }
         )
 
-        attendance_status = (
-            attendance.get("status")
-            if attendance
-            else None
-        )
-
         attendance_list.append(
             {
-                "registration_id": str(
-                    registration["_id"]
-                ),
-
+                "registration_id": str(registration["_id"]),
                 "attendance_id": (
-                    str(attendance["_id"])
-                    if attendance
-                    else None
+                    str(attendance["_id"]) if attendance else None
                 ),
-
                 "user_id": str(user_id),
-
-                "name": user.get(
-                    "name",
-                    "Unknown",
-                ),
-
-                "roll_number": user.get(
-                    "roll_number"
-                ),
-
-                "email": user.get(
-                    "email"
-                ),
-
-                "status": attendance_status,
-
+                "name": user.get("name", "Unknown"),
+                "roll_number": user.get("roll_number"),
+                "email": user.get("email"),
+                "status": attendance.get("status") if attendance else None,
                 "marked_at": (
-                    attendance.get("marked_at")
-                    if attendance
-                    else None
+                    attendance.get("marked_at") if attendance else None
                 ),
             }
         )
 
-    # -----------------------------------------------------
-    # Attendance statistics
-    # -----------------------------------------------------
-
-    total_registered = len(attendance_list)
-
     attended_count = sum(
-        1
-        for item in attendance_list
+        1 for item in attendance_list
         if item["status"] == "attended"
     )
 
     absent_count = sum(
-        1
-        for item in attendance_list
+        1 for item in attendance_list
         if item["status"] == "absent"
     )
 
     pending_count = sum(
-        1
-        for item in attendance_list
+        1 for item in attendance_list
         if item["status"] is None
     )
 
@@ -481,11 +398,11 @@ async def get_event_attendance(
         "event_id": event_id,
         "event_title": event["title"],
         "event_status": event.get("status"),
-        "credited_hours": event.get(
-            "credited_hours",
-            0,
+        "credited_hours": event.get("credited_hours", 0),
+        "credited_hours_locked": event.get(
+            "credited_hours_locked", False
         ),
-        "total_registered": total_registered,
+        "total_registered": len(attendance_list),
         "attended": attended_count,
         "absent": absent_count,
         "pending": pending_count,
@@ -502,23 +419,7 @@ async def get_my_attendance(
     event_id: str,
     current_user=Depends(get_current_user),
 ):
-
-    # -----------------------------------------------------
-    # Validate event ID
-    # -----------------------------------------------------
-
-    try:
-        event_object_id = ObjectId(event_id)
-
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid event ID",
-        )
-
-    # -----------------------------------------------------
-    # Find attendance
-    # -----------------------------------------------------
+    event_object_id = parse_object_id(event_id, "event")
 
     attendance = await event_attendance_collection.find_one(
         {
@@ -537,7 +438,5 @@ async def get_my_attendance(
     return {
         "marked": True,
         "status": attendance["status"],
-        "marked_at": attendance.get(
-            "marked_at"
-        ),
+        "marked_at": attendance.get("marked_at"),
     }
